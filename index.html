@@ -94,6 +94,11 @@
   }
   button.primary:hover{ filter:brightness(1.06); }
   button.primary:active{ filter:brightness(0.96); }
+  button.primary:disabled{ opacity:.6; cursor:default; filter:none; }
+
+  .spinner-wrap{ display:flex; align-items:center; gap:12px; padding:20px 4px; color:var(--text-dim); font-size:.9rem; }
+  .spinner{ width:22px; height:22px; border-radius:50%; flex:none; border:3px solid var(--border); border-top-color:var(--accent); animation:fc-spin .7s linear infinite; }
+  @keyframes fc-spin{ to{ transform:rotate(360deg); } }
 
   .banner{ border-radius:10px; padding:12px 14px; font-size:.88rem; margin-bottom:14px; }
   .banner.warn{ background:var(--warn-bg); color:var(--warn); }
@@ -131,12 +136,12 @@
 <main>
   <header class="page">
     <h1>Fairy Food Calculator</h1>
-    <p>Set your fairy's element and level, pick the Rental Skill you want, then enter how many points she still needs per trait — straight from her stats screen. You'll get back the cheapest feeding plan that uses as few Gratitude Crystals as possible.</p>
+    <p>Set your fairy's element and level, pick the Rental Skill you want, then enter how many points she still needs per trait - straight from her stats screen.</p>
   </header>
 
   <section class="card">
     <h2>Your Fairy</h2>
-    <p class="hint">Feeding also levels her up — she caps at level 99 without a refresh.</p>
+    <p class="hint">Feeding also levels her up - she caps at level 99 without a refresh.</p>
 
     <div class="setup-row">
       <label class="field">
@@ -166,9 +171,10 @@
     <details class="adv">
       <summary>Advanced: Food Availability</summary>
       <div class="tier-toggles">
-        <label><input type="checkbox" id="tierBronze" checked> Bronze unlocked</label>
-        <label><input type="checkbox" id="tierSilver" checked> Silver unlocked</label>
-        <label><input type="checkbox" id="tierGold" checked> Gold unlocked</label>
+        <label><input type="checkbox" id="tierBronze" checked> Use Bronze Food</label>
+        <label><input type="checkbox" id="tierSilver" checked> Use Silver Food</label>
+        <label><input type="checkbox" id="tierGold" checked> Use Gold Food</label>
+        <label><input type="checkbox" id="disableCrystals"> Never use Gratitude Crystals</label>
       </div>
       <p class="hint">Uncheck anything you haven't unlocked yet.</p>
       <div class="food-groups" id="foodGroups"></div>
@@ -184,7 +190,7 @@
     <div id="results"></div>
   </section>
 
-  <footer class="note">Data from the Zelda Wiki's My Fairy page. Assumes she keeps the same traits through every refresh, and favors using as few Gratitude Crystals as possible.</footer>
+  <footer class="note">Data from the Zelda Wiki's My Fairy page. Assumes she keeps the same traits through every refresh, and only ever uses Gold Gratitude Crystals (never Silver, since each one costs a fairy release either way) priced at the 50 levels it costs to obtain one, using them only when that's cheaper than regular food.</footer>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/javascript-lp-solver@0.4.24/prod/solver.js"></script>
@@ -196,11 +202,30 @@
 
   var MATCH_MAP = {};
   Object.keys(DATA.matchMap).forEach(function(k){ MATCH_MAP[k] = DATA.matchMap[k]; });
-  var FOODS = DATA.foods;
   var SKILLS = DATA.skills;
+  // Gratitude Crystals ship in all five elements, but which one you get is
+  // random and never gets a match bonus (see matchedDelta) - so with the
+  // element stripped of any effect, every elemental copy of a given tier is
+  // functionally identical. Collapse them to one entry per tier so they don't
+  // show up as separate, redundant rows in the feeding plan.
+  // Silver crystals are excluded entirely: getting ANY crystal requires
+  // releasing a fairy, which first requires completing a mission to raise a
+  // new one - a fixed time cost per release, regardless of tier. Since a
+  // silver crystal is worth less per release than a gold one, matching gold's
+  // value in silver takes strictly more releases (and thus more missions) for
+  // the same result, so gold always wins and silver is never worth using.
+  var FOODS = (function(){
+    var seenCrystalTier = {};
+    return DATA.foods.filter(function(f){
+      if (f.type !== "Crystal") return true;
+      if (f.tier === "silver") return false;
+      if (seenCrystalTier[f.tier]) return false;
+      seenCrystalTier[f.tier] = true;
+      return true;
+    });
+  })();
   // A "food key" identifies a specific food+element combo (most foods only ever
-  // appear in one element, but Gratitude Crystals come in all five, so name alone
-  // isn't unique — this keeps exclusion/grouping/solver variable ids collision-free).
+  // appear in one element; Gratitude Crystals are deduped above to one per tier).
   function foodKey(f){ return f.name + "||" + f.element; }
   var FOOD_KEYS = Array.from(new Set(FOODS.map(foodKey))).sort();
   var RETAIN_FRACTION = 0.10;
@@ -209,7 +234,7 @@
 
   // ---------- state ----------
   // pointsLeft holds, per trait relevant to the currently chosen skill, exactly
-  // what the game's own "points left" display shows — the player copies it in
+  // what the game's own "points left" display shows - the player copies it in
   // directly rather than tracking (and subtracting) the fairy's absolute trait
   // totals themselves, which the game doesn't surface anyway.
   var state = {
@@ -218,7 +243,8 @@
     skillName: "",
     pointsLeft: {},
     tiers: {bronze:true, silver:true, gold:true},
-    excludedFoods: new Set()
+    excludedFoods: new Set(),
+    disableCrystals: false
   };
 
   // ---------- DOM refs ----------
@@ -229,12 +255,13 @@
   var elPointsLeftRows = document.getElementById("pointsLeftRows");
   var elFoodGroups = document.getElementById("foodGroups");
   var elResults = document.getElementById("results");
+  var elCalcBtn = document.getElementById("calcBtn");
 
   elFairyElement.value = state.element;
   elFairyLevel.value = state.level;
 
   var noneOpt = document.createElement("option");
-  noneOpt.value = ""; noneOpt.textContent = "— Select a Rental Skill —";
+  noneOpt.value = ""; noneOpt.textContent = "- Select a Rental Skill -";
   elSkillSelect.appendChild(noneOpt);
   SKILLS.forEach(function(s){
     var opt = document.createElement("option");
@@ -246,8 +273,11 @@
   function renderFoodGroups(){
     elFoodGroups.innerHTML = "";
     var byElement = {};
+    // Gratitude Crystals have their own dedicated toggle above, so leave them
+    // out of this per-food list to avoid two controls for the same thing.
     FOOD_KEYS.forEach(function(key){
       var f = FOODS.find(function(x){ return foodKey(x) === key; });
+      if (f.type === "Crystal") return;
       byElement[f.element] = byElement[f.element] || [];
       byElement[f.element].push({ key: key, name: f.name });
     });
@@ -276,7 +306,7 @@
 
   // Shows the chosen skill's description, and one input per trait it needs so
   // the player can type in exactly what the game's own "points left" display
-  // shows for their fairy — the tool never needs to know her absolute totals.
+  // shows for their fairy - the tool never needs to know her absolute totals.
   function renderSkillTarget(){
     var skill = SKILLS.find(function(s){ return s.name === state.skillName; });
     elSkillDesc.textContent = skill ? skill.desc : "";
@@ -291,7 +321,7 @@
       row.className = "trait-row single";
       var label = document.createElement("label");
       label.className = "field";
-      label.textContent = trait + " — points left (of " + full + ")";
+      label.textContent = trait + " - points left (of " + full + ")";
       var num = document.createElement("input");
       num.type = "number"; num.min = "0"; num.max = String(full); num.step = "1";
       var existing = state.pointsLeft[trait];
@@ -328,94 +358,186 @@
   document.getElementById("tierBronze").addEventListener("change", function(e){ state.tiers.bronze = e.target.checked; });
   document.getElementById("tierSilver").addEventListener("change", function(e){ state.tiers.silver = e.target.checked; });
   document.getElementById("tierGold").addEventListener("change", function(e){ state.tiers.gold = e.target.checked; });
+  document.getElementById("disableCrystals").addEventListener("change", function(e){ state.disableCrystals = e.target.checked; });
 
   document.getElementById("calcBtn").addEventListener("click", calculate);
 
   // ---------- helpers ----------
-  function matchedDelta(rawDelta, foodElement, fairyElement){
-    if (foodElement !== fairyElement) return rawDelta;
+  // Gratitude Crystals are handed out with a random element, so the one the
+  // player actually has can't be assumed to match the fairy's element -
+  // isCrystal always skips the match bonus, regardless of the element on file.
+  function matchedDelta(rawDelta, foodElement, fairyElement, isCrystal){
+    if (isCrystal || foodElement !== fairyElement) return rawDelta;
     var key = String(rawDelta);
     return (key in MATCH_MAP) ? MATCH_MAP[key] : rawDelta;
   }
 
-  // Solve one feeding cycle with a strict priority order: (1) cover as much of
+  // Solve one feeding cycle with a priority order: (1) cover as much of
   // `remaining` as possible within `budget` levels, (2) among equally-good
-  // plans, use as few Gratitude Crystals as possible (they're much harder to
-  // earn than regular food), (3) among those, spend as few levels as possible.
-  // This is one weighted-objective MIP solve: because every food's level cost
-  // is bounded by `budget` itself (the levelBudget constraint enforces that
-  // directly), the maximum possible combined "crystal + level" score swing is
-  // bounded, so choosing weights comfortably above that bound guarantees
-  // coverage always wins first, crystal count always wins the tiebreak
-  // second, and level cost only decides what's left.
+  // plans, spend the fewest EFFECTIVE levels - where a Gratitude Crystal's
+  // effective cost is its real level gain PLUS what it actually costs to
+  // obtain one: a fairy must be leveled up 50 times then released for a gold
+  // crystal, so a gold crystal "costs" 50 levels on top of the 3 levels it
+  // grants when fed. This prices crystals at their real exchange rate
+  // instead of avoiding them outright, so the solver only reaches for one
+  // when it's actually cheaper overall than the regular-food alternative -
+  // never just because it helps. (Only Gold crystals are modeled at all -
+  // see the FOODS filter above for why Silver is excluded entirely.)
   //
-  // A hard time/quality cap (`options.timeout` / `options.tolerance` below)
-  // is essential here, not just a nicety: this solver's branch-and-bound can
-  // blow up unpredictably on certain trait/food combinations (observed to
-  // hang outright on some Rental Skills during testing, unrelated to how the
-  // objective is weighted — it's a pre-existing sharp edge in the library,
-  // not something specific to crystal-minimization). Without a cap, that
-  // means an unresponsive page. With it, the solver always returns its best
-  // solution found within the time given — optimal in the vast majority of
-  // cases, and very close to it on the rare pathological ones — instead of
-  // hanging.
+  // This is one weighted-objective MIP solve: because every food's real
+  // level cost is bounded by `budget` itself (the levelBudget constraint
+  // enforces that directly), the maximum possible effective-cost score
+  // swing in one cycle is bounded, so a coverage weight comfortably above
+  // that bound guarantees coverage always wins first and effective cost
+  // only decides what's left.
+  //
+  // A hard time cap (`options.timeout` below) is essential here, not just a
+  // nicety: this solver's branch-and-bound can blow up unpredictably on
+  // certain trait/food combinations (observed to hang outright on some
+  // Rental Skills during testing - it's a pre-existing sharp edge in the
+  // library). Without a cap, that means an unresponsive page. With it, the
+  // solver always returns its best solution found within the time given
+  // instead of hanging.
+  //
+  // Coverage (hitting every trait's target) and cost (real + crystal-exchange
+  // levels spent) are solved in two passes, not as one combined objective.
+  // Pass 1 is the proven, already-tested coverage solve: it weights coverage
+  // at 1,000,000x cost so coverage always wins first, with a tolerance tight
+  // enough that no under-covered solution is ever mistaken for optimal (see
+  // the note above `options.tolerance` below). That pass alone decides WHAT
+  // this cycle actually achieves, exactly as before.
+  //
+  // Pass 2 then asks a narrower question: of every plan that matches pass 1's
+  // coverage, which is cheapest? It's handed pass 1's own realized result as
+  // a lower bound, so it can only ever match or beat pass 1's cost - never
+  // fall short of its coverage - and it optimizes cost alone (a plain few-
+  // thousand-unit number, not a billions-scale combined score), so an exact
+  // solve is cheap and it isn't exposed to the same tolerance/scale trap.
+  // This is what actually fixes cases like a fully-converged solve settling
+  // for a slightly pricier regular-food mix pass 1's combined objective could
+  // still accept (a few hundred wasted cost is invisible next to a coverage
+  // weight in the billions), but pass 2's cost-only, exact-tolerance solve
+  // cannot.
+  //
+  // Gratitude Crystals only ever come in Gold here (see the FOODS filter
+  // above): getting one means releasing a fairy, and releasing a fairy means
+  // first completing a mission to raise a new one to release - a fixed time
+  // cost per release no matter the tier. A Silver crystal is worth less per
+  // release than Gold, so matching Gold's value in Silver takes more
+  // releases, and therefore more missions, for the same result. Gold always
+  // wins, so Silver is left out of the model entirely rather than priced and
+  // left for the solver to (correctly) avoid.
+  var CRYSTAL_LEVEL_COST = { gold: 50 };
+
   function solveCycle(remaining, budget, candidateFoods, fairyElement){
     var traits = Object.keys(remaining);
     if (budget <= 0 || traits.length === 0){
       return { rows: [], gained: {}, levelsUsed: 0, crystalsUsed: 0 };
     }
 
-    // Max possible level-cost score magnitude in one cycle is `budget` (the
-    // levelBudget constraint caps sum(qty*levelGain) at budget directly), so
-    // any weight for "fewer crystals" above that always wins the tiebreak.
-    // Max possible combined crystal+level magnitude is then bounded by
-    // budget/2 crystals (cheapest crystal costs 2 levels) times that weight,
-    // plus budget itself — so any coverage weight well above THAT always
-    // wins first. These constants keep a wide safety margin either way.
-    var W_CRYSTAL = 1000;
+    // Max possible effective-cost score magnitude in one cycle is bounded by
+    // budget (real levels) plus at most budget/2 crystals (cheapest crystal
+    // is 2 real levels) each adding up to 50 - so any coverage weight well
+    // above that always wins first, with a wide safety margin.
     var W_COV = 1000000;
 
-    var model = {
-      optimize: "score", opType: "max", constraints: {}, variables: {}, ints: {},
-      options: { timeout: 500, tolerance: 0.01 }
-    };
-    model.constraints.levelBudget = { max: budget };
-    traits.forEach(function(t){
-      model.constraints["cap_" + t] = { max: remaining[t] };
-      model.constraints["link_" + t] = { max: 0 };
-    });
-
-    var varMeta = {};
-    candidateFoods.forEach(function(f){
-      var id = foodKey(f) + "|" + f.tier;
-      var isCrystal = f.type === "Crystal";
-      var vars = { levelBudget: f.levelGain, score: -f.levelGain - (isCrystal ? W_CRYSTAL : 0) };
-      var useful = false;
+    // Constraints and food/coverage variables are identical in both passes;
+    // only the objective (and, in pass 2, one extra constraint) differs.
+    function buildModel(){
+      var model = { constraints: {}, variables: {}, ints: {} };
+      model.constraints.levelBudget = { max: budget };
       traits.forEach(function(t){
-        var raw = f.traits[t] || 0;
-        var eff = matchedDelta(raw, f.element, fairyElement);
-        if (eff !== 0){ vars["link_" + t] = -eff; useful = true; }
+        model.constraints["cap_" + t] = { max: remaining[t] };
+        model.constraints["link_" + t] = { max: 0 };
       });
-      if (!useful) return;
-      model.variables[id] = vars;
-      model.ints[id] = 1;
-      varMeta[id] = f;
-    });
-
-    traits.forEach(function(t){
-      var yId = "y_" + t;
-      var v = {};
-      v["cap_" + t] = 1;
-      v["link_" + t] = 1;
-      v.score = W_COV;
-      model.variables[yId] = v;
-    });
-
-    if (Object.keys(varMeta).length === 0){
-      return { rows: [], gained: {}, levelsUsed: 0, crystalsUsed: 0, noFood: true };
+      var varMeta = {};
+      candidateFoods.forEach(function(f){
+        var id = foodKey(f) + "|" + f.tier;
+        var isCrystal = f.type === "Crystal";
+        var effectiveCost = f.levelGain + (isCrystal ? (CRYSTAL_LEVEL_COST[f.tier] || 0) : 0);
+        var vars = { levelBudget: f.levelGain, cost: effectiveCost };
+        var useful = false;
+        traits.forEach(function(t){
+          var raw = f.traits[t] || 0;
+          var eff = matchedDelta(raw, f.element, fairyElement, isCrystal);
+          if (eff !== 0){ vars["link_" + t] = -eff; useful = true; }
+        });
+        if (!useful) return;
+        model.variables[id] = vars;
+        model.ints[id] = 1;
+        varMeta[id] = f;
+      });
+      traits.forEach(function(t){
+        var v = { coverage: 1, cost: 0 };
+        v["cap_" + t] = 1;
+        v["link_" + t] = 1;
+        model.variables["y_" + t] = v;
+      });
+      return { model: model, varMeta: varMeta };
     }
 
-    var result = window.solver.Solve(model);
+    function realizedGained(res, varMeta){
+      var g = {}; traits.forEach(function(t){ g[t] = 0; });
+      Object.keys(varMeta).forEach(function(id){
+        var qty = Math.round(res[id] || 0);
+        if (qty > 0){
+          var f = varMeta[id];
+          var isCrystal = f.type === "Crystal";
+          traits.forEach(function(t){
+            var raw = f.traits[t] || 0;
+            var eff = matchedDelta(raw, f.element, fairyElement, isCrystal);
+            if (eff) g[t] += eff * qty;
+          });
+        }
+      });
+      return g;
+    }
+
+    // `options.tolerance` is a RELATIVE gap (a fraction of the best possible
+    // objective value), not an absolute one, and it must stay tiny here: with
+    // W_COV=1,000,000 dominating the objective, the best-possible value can
+    // run into the billions, so even a 1% tolerance leaves millions of units
+    // of slack - far more than the 1,000,000-unit cost of fully covering one
+    // more trait. That let the solver accept solutions that fell a few points
+    // short of a trait's target while still being "within tolerance" of
+    // optimal, which could snowball into refresh cycles that oscillate short
+    // of the target forever, wrongly reporting a skill as impossible. Kept at
+    // 0.00001, the gap this allows stays well under 1,000,000 for every
+    // skill's targets, so no under-covered solution is ever mistaken for an
+    // optimal one.
+    var pass1 = buildModel();
+    if (Object.keys(pass1.varMeta).length === 0){
+      return { rows: [], gained: {}, levelsUsed: 0, crystalsUsed: 0, noFood: true };
+    }
+    traits.forEach(function(t){ pass1.model.variables["y_" + t].score = W_COV; });
+    Object.keys(pass1.varMeta).forEach(function(id){
+      pass1.model.variables[id].score = -pass1.model.variables[id].cost;
+    });
+    pass1.model.optimize = "score";
+    pass1.model.opType = "max";
+    pass1.model.options = { timeout: 2000, tolerance: 0.00001 };
+    var res1 = window.solver.Solve(pass1.model);
+    var baseline = realizedGained(res1, pass1.varMeta);
+    var baselineCoverage = 0;
+    traits.forEach(function(t){ baselineCoverage += Math.min(remaining[t], baseline[t]); });
+
+    // Pass 2: of every plan that matches pass 1's own coverage, find the
+    // cheapest. Feasible by construction - pass 1's own food quantities
+    // already satisfy the totalCoverage constraint below - so this can only
+    // match or improve on pass 1's cost, never its coverage.
+    var pass2 = buildModel();
+    var varMeta = pass2.varMeta;
+    pass2.model.constraints.totalCoverage = { min: baselineCoverage };
+    traits.forEach(function(t){ pass2.model.variables["y_" + t].totalCoverage = 1; });
+    pass2.model.optimize = "cost";
+    pass2.model.opType = "min";
+    // Cost values here are always small (a few thousand at most), so this
+    // pass is feasible almost immediately and typically finishes well under
+    // this cap - it's kept short so a skill needing several refresh cycles
+    // can't compound pass 2's cost into a long wait on top of pass 1's.
+    pass2.model.options = { timeout: 800, tolerance: 0 };
+    var result = window.solver.Solve(pass2.model);
+
     var rows = [];
     var gained = {}; traits.forEach(function(t){ gained[t] = 0; });
     var levelsUsed = 0;
@@ -425,12 +547,13 @@
       var qty = Math.round(result[id] || 0);
       if (qty > 0){
         var f = varMeta[id];
+        var isCrystal = f.type === "Crystal";
         rows.push({ food: f, qty: qty });
         levelsUsed += qty * f.levelGain;
-        if (f.type === "Crystal") crystalsUsed += qty;
+        if (isCrystal) crystalsUsed += qty;
         traits.forEach(function(t){
           var raw = f.traits[t] || 0;
-          var eff = matchedDelta(raw, f.element, fairyElement);
+          var eff = matchedDelta(raw, f.element, fairyElement, isCrystal);
           if (eff) gained[t] += eff * qty;
         });
       }
@@ -444,11 +567,11 @@
     html += '<div class="cycle-head"><h3>Cycle ' + (idx+1) + '</h3><span class="lv">' +
       cycle.levelsUsed + ' / ' + cycle.budget + ' levels used</span></div>';
     if (cycle.rows.length === 0){
-      html += '<p class="hint" style="margin:0;">No room to feed anything this cycle — refresh immediately.</p>';
+      html += '<p class="hint" style="margin:0;">No room to feed anything this cycle - refresh immediately.</p>';
     } else {
       html += '<div class="table-wrap"><table><thead><tr><th>Food</th><th>Tier</th><th class="num">Qty</th></tr></thead><tbody>';
       cycle.rows.forEach(function(r){
-        html += '<tr><td>' + r.food.name + (r.food.element === state.element ? ' <span style="color:var(--accent-2); font-weight:600; font-size:.78em;">match</span>' : '') +
+        html += '<tr><td>' + r.food.name + (r.food.type !== "Crystal" && r.food.element === state.element ? ' <span style="color:var(--accent-2); font-weight:600; font-size:.78em;">match</span>' : '') +
           '</td><td><span class="tier-badge ' + r.food.tier + '">' + r.food.tier + '</span></td><td class="num">' + r.qty + '</td></tr>';
       });
       html += '</tbody></table></div>';
@@ -461,7 +584,18 @@
     return html;
   }
 
-  function calculate(){
+  // Some skills need several refresh cycles, each running a real solve that
+  // can take a couple of seconds - without yielding, that whole run blocks
+  // the tab and looks frozen. This hands control back to the browser for a
+  // repaint (double rAF so it lands after the paint, not before it) between
+  // cycles, which is also the moment the loading spinner actually appears.
+  function yieldToUI(){
+    return new Promise(function(resolve){
+      requestAnimationFrame(function(){ requestAnimationFrame(resolve); });
+    });
+  }
+
+  async function calculate(){
     var skill = SKILLS.find(function(s){ return s.name === state.skillName; });
     if (!skill){
       elResults.innerHTML = '<p class="hint" style="margin:0;">Pick a Rental Skill and enter her points left to see a feeding plan.</p>';
@@ -473,7 +607,7 @@
     var html = "";
 
     // "Points left" is exactly what the game shows, so the fairy's current
-    // total is just the target minus that — no separate "current points"
+    // total is just the target minus that - no separate "current points"
     // input needed anywhere.
     var have = {};
     Object.keys(targets).forEach(function(t){
@@ -484,13 +618,17 @@
 
     var anyRemaining = Object.keys(targets).some(function(t){ return targets[t] - have[t] > 0; });
     if (!anyRemaining){
-      html += '<div class="banner good">Every trait needed for this skill is already at or above target — no food needed!</div>';
+      html += '<div class="banner good">Every trait needed for this skill is already at or above target - no food needed!</div>';
       elResults.innerHTML = html;
       return;
     }
 
     var allowedTiers = Object.keys(state.tiers).filter(function(t){ return state.tiers[t]; });
+    // Gratitude Crystals unlock on their own track (releasing fairies), not by
+    // reaching a food tier's friendship rank, so the Bronze/Silver/Gold food
+    // toggles never gate them - only the dedicated checkbox does.
     var candidateFoods = FOODS.filter(function(f){
+      if (f.type === "Crystal") return !state.disableCrystals;
       return allowedTiers.indexOf(f.tier) !== -1 && !state.excludedFoods.has(foodKey(f));
     });
 
@@ -499,7 +637,7 @@
       if (targets[t] - have[t] <= 0) return false;
       return !candidateFoods.some(function(f){
         var raw = f.traits[t] || 0;
-        return matchedDelta(raw, f.element, state.element) > 0;
+        return matchedDelta(raw, f.element, state.element, f.type === "Crystal") > 0;
       });
     });
     if (deadTraits.length){
@@ -509,39 +647,61 @@
       return;
     }
 
-    var cycles = [];
-    var budget = MAX_LEVEL - state.level;
-    var success = false;
-    var prevCycleAfter = null;
+    // The actual solving starts here, and a plan needing several refresh
+    // cycles can take a few seconds - show a spinner and disable the button
+    // so it doesn't look stuck, then yield once so the browser can paint it
+    // before the (blocking) solve below picks up.
+    elCalcBtn.disabled = true;
+    elResults.innerHTML = '<div class="spinner-wrap"><span class="spinner" aria-hidden="true"></span>Calculating feeding plan…</div>';
 
-    for (var i = 0; i < MAX_CYCLES; i++){
-      var remaining = {};
-      Object.keys(targets).forEach(function(t){
-        var r = targets[t] - have[t];
-        if (r > 0) remaining[t] = r;
-      });
-      if (Object.keys(remaining).length === 0){ success = true; break; }
+    try {
+      await yieldToUI();
 
-      var sol = solveCycle(remaining, budget, candidateFoods, state.element);
-      Object.keys(sol.gained).forEach(function(t){ have[t] += sol.gained[t]; });
+      // Crystals are priced at their real cost (level gain plus the 50
+      // levels it takes to obtain one) rather than avoided outright, so this
+      // loop is a simple single-phase feed: crystals are available every
+      // cycle, and the per-cycle solve only uses one when it's genuinely
+      // cheaper than the regular-food alternative.
+      function sumAbsDelta(a, b){ var d = 0; Object.keys(targets).forEach(function(t){ d += Math.abs(a[t] - b[t]); }); return d; }
+      // Feeding the same fixed food combo every cycle doesn't always settle onto
+      // a single repeated state - it can alternate between a small handful of
+      // states instead (cycle A, then B, then A again). Comparing only against
+      // the immediately-previous cycle misses that, so this checks the last
+      // several cycles for any repeat, not just the last one - a genuine
+      // correctness fix found while testing, carried over from that build.
+      var cycles = [];
+      var budget = MAX_LEVEL - state.level;
+      var success = false;
+      var history = [];
 
-      var haveAfter = {};
-      Object.keys(targets).forEach(function(t){ haveAfter[t] = have[t]; });
-      var stillRemaining = Object.keys(targets).some(function(t){ return targets[t] - have[t] > 0; });
+      for (var i = 0; i < MAX_CYCLES; i++){
+        var remaining = {};
+        Object.keys(targets).forEach(function(t){
+          var r = targets[t] - have[t];
+          if (r > 0) remaining[t] = r;
+        });
+        if (Object.keys(remaining).length === 0){ success = true; break; }
 
-      // Convergence check: compare this cycle's post-feed totals to the previous
-      // cycle's. If they've stopped moving and we still haven't hit target, further
-      // refreshes won't help either — stop without recording a duplicate cycle.
-      if (prevCycleAfter && stillRemaining){
-        var delta = 0;
-        Object.keys(targets).forEach(function(t){ delta += Math.abs(haveAfter[t] - prevCycleAfter[t]); });
-        if (delta < 1) break;
+        var sol = solveCycle(remaining, budget, candidateFoods, state.element);
+        Object.keys(sol.gained).forEach(function(t){ have[t] += sol.gained[t]; });
+        // Each solveCycle call can itself take a couple of seconds - yield
+        // right after it so the spinner keeps animating and the tab stays
+        // responsive across a long multi-refresh run instead of freezing solid.
+        await yieldToUI();
+
+        var haveAfter = {};
+        Object.keys(targets).forEach(function(t){ haveAfter[t] = have[t]; });
+        var stillRemaining = Object.keys(targets).some(function(t){ return targets[t] - have[t] > 0; });
+
+      if (stillRemaining && history.some(function(prev){ return sumAbsDelta(haveAfter, prev) < 1; })){
+        break;
       }
 
       cycles.push({ budget: budget, rows: sol.rows, levelsUsed: sol.levelsUsed, crystalsUsed: sol.crystalsUsed, haveAfter: haveAfter });
       if (!stillRemaining){ success = true; break; }
 
-      prevCycleAfter = haveAfter;
+      history.push(haveAfter);
+      if (history.length > 8) history.shift();
       // Refresh: decay toward 10% retention, rounded down.
       Object.keys(have).forEach(function(t){ have[t] = Math.floor(have[t] * RETAIN_FRACTION); });
       budget = MAX_LEVEL - 1; // back to level 1 after refresh
@@ -557,7 +717,7 @@
       html += renderCycleTable(cycles[0], 0, targets);
     } else if (success) {
       html += '<div class="banner warn"><strong>This needs ' + (cycles.length - 1) + ' refresh' + (cycles.length - 1 === 1 ? '' : 'es') +
-        '</strong> — she\'ll hit level 99, revive at level 1 keeping 10% of her totals, and keep feeding.</div>';
+        '</strong> - she\'ll hit level 99, revive at level 1 keeping 10% of her totals, and keep feeding.</div>';
       var totalItems = cycles.reduce(function(s,c){ return s + c.rows.reduce(function(s2,r){return s2+r.qty;},0); }, 0);
       var totalCrystals = cycles.reduce(function(s,c){ return s + c.crystalsUsed; }, 0);
       html += '<div class="summary-stats">' +
@@ -587,7 +747,10 @@
       });
     }
 
-    elResults.innerHTML = html;
+      elResults.innerHTML = html;
+    } finally {
+      elCalcBtn.disabled = false;
+    }
   }
 
   calculate();
