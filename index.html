@@ -1,40 +1,40 @@
-<title>Fairy Feed Planner</title>
+<title>Fairy Food Calculator</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
   :root{
-    --bg:#f4efe2;
-    --surface:#fffdf7;
-    --surface-2:#eee6d2;
-    --text:#2a2340;
-    --text-dim:#6a6180;
-    --border:#ddd2b4;
-    --accent:#6a4fd6;
-    --accent-2:#1f9e91;
-    --accent-ink:#ffffff;
-    --good:#1f7a4d;
-    --good-bg:#e2f3e8;
+    --bg:#f3e6c8;
+    --surface:#fff8ea;
+    --surface-2:#ecd9ab;
+    --text:#2b1a12;
+    --text-dim:#7a6248;
+    --border:#c9a562;
+    --accent:#9c1c1c;
+    --accent-2:#a5760b;
+    --accent-ink:#fdf1d8;
+    --good:#3c6b2f;
+    --good-bg:#e4efd7;
     --warn:#8a5a10;
     --warn-bg:#faf0d9;
-    --danger:#a23b32;
-    --danger-bg:#fbe7e4;
-    --chip-bg:#efe8fb;
-    --shadow: 0 1px 2px rgba(40,30,70,.06), 0 4px 16px rgba(40,30,70,.06);
+    --danger:#b0451f;
+    --danger-bg:#f7e2d3;
+    --chip-bg:#f0dfa8;
+    --shadow: 0 1px 2px rgba(60,30,10,.08), 0 4px 16px rgba(60,30,10,.10);
     font-synthesis: none;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#171426; --surface:#1f1b32; --surface-2:#262040; --text:#efe9ff; --text-dim:#a89dc9;
-      --border:#3a3358; --accent:#a68bff; --accent-2:#4fe0d3; --accent-ink:#1a1330;
-      --good:#63d999; --good-bg:#163527; --warn:#e8b95c; --warn-bg:#3a2d10;
-      --danger:#ef8478; --danger-bg:#3c1f1c; --chip-bg:#2c2650;
+      --bg:#17110d; --surface:#241a13; --surface-2:#2f2218; --text:#f3e6c8; --text-dim:#b9a179;
+      --border:#4a3626; --accent:#e2574c; --accent-2:#e8c468; --accent-ink:#241009;
+      --good:#8fd171; --good-bg:#1f2e18; --warn:#e8b95c; --warn-bg:#3a2d10;
+      --danger:#ff8a5b; --danger-bg:#3a2013; --chip-bg:#3a2f18;
       --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
     }
   }
   :root[data-theme="dark"]{
-    --bg:#171426; --surface:#1f1b32; --surface-2:#262040; --text:#efe9ff; --text-dim:#a89dc9;
-    --border:#3a3358; --accent:#a68bff; --accent-2:#4fe0d3; --accent-ink:#1a1330;
-    --good:#63d999; --good-bg:#163527; --warn:#e8b95c; --warn-bg:#3a2d10;
-    --danger:#ef8478; --danger-bg:#3c1f1c; --chip-bg:#2c2650;
+    --bg:#17110d; --surface:#241a13; --surface-2:#2f2218; --text:#f3e6c8; --text-dim:#b9a179;
+    --border:#4a3626; --accent:#e2574c; --accent-2:#e8c468; --accent-ink:#241009;
+    --good:#8fd171; --good-bg:#1f2e18; --warn:#e8b95c; --warn-bg:#3a2d10;
+    --danger:#ff8a5b; --danger-bg:#3a2013; --chip-bg:#3a2f18;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
   }
 
@@ -130,13 +130,13 @@
 
 <main>
   <header class="page">
-    <h1>Fairy Feed Planner</h1>
-    <p>Set a Companion Fairy's element and level, pick the Rental Skill you want to unlock, then type in how many points she still needs for each trait — exactly what the game shows you, so there's no maths to do yourself. Get back a feeding plan that covers as much ground as possible, uses as few Gratitude Crystals as it can get away with, and is cheapest in levels after that — including a refresh-by-refresh plan if it can't be done before she caps out at level 99.</p>
+    <h1>Fairy Food Calculator</h1>
+    <p>Set your fairy's element and level, pick the Rental Skill you want, then enter how many points she still needs per trait — straight from her stats screen. You'll get back the cheapest feeding plan that uses as few Gratitude Crystals as possible.</p>
   </header>
 
   <section class="card">
     <h2>Your Fairy</h2>
-    <p class="hint">Feeding food also levels her up (Bronze +1, Silver +2, Gold +3) — she can't be fed past level 99 without a refresh first.</p>
+    <p class="hint">Feeding also levels her up — she caps at level 99 without a refresh.</p>
 
     <div class="setup-row">
       <label class="field">
@@ -154,7 +154,7 @@
 
   <section class="card">
     <h2>Target</h2>
-    <p class="hint">Pick the Rental Skill you want to unlock — she needs to already be holding all of its required traits (a fairy can only hold 5 of the 10 at once). Then enter how many points are still needed for each trait, exactly as the game shows on her stats screen.</p>
+    <p class="hint">Pick the skill she's tracking, then enter how many points are still needed per trait, exactly as shown on her stats screen.</p>
 
     <label class="field" style="margin-bottom:12px;">
       Rental skill
@@ -164,13 +164,13 @@
     <div id="pointsLeftRows"></div>
 
     <details class="adv">
-      <summary>Advanced: food availability</summary>
+      <summary>Advanced: Food Availability</summary>
       <div class="tier-toggles">
         <label><input type="checkbox" id="tierBronze" checked> Bronze unlocked</label>
         <label><input type="checkbox" id="tierSilver" checked> Silver unlocked</label>
         <label><input type="checkbox" id="tierGold" checked> Gold unlocked</label>
       </div>
-      <p class="hint">Uncheck any specific foods you haven't unlocked yet in Adventure Mode — everything is assumed available by default.</p>
+      <p class="hint">Uncheck anything you haven't unlocked yet.</p>
       <div class="food-groups" id="foodGroups"></div>
     </details>
 
@@ -184,7 +184,7 @@
     <div id="results"></div>
   </section>
 
-  <footer class="note">Data sourced from the Zelda Wiki's My Fairy page (Hyrule Warriors: Definitive Edition trait names). Assumes your fairy already holds every trait the chosen skill needs (as she must, to be tracking that skill in-game) and that a refresh keeps the same traits (trait-swapping on refresh isn't modeled yet); rounds the 10%-retention down to the nearest whole point. Plans favor using as few Gratitude Crystals as possible, since they're much harder to earn than other food.</footer>
+  <footer class="note">Data from the Zelda Wiki's My Fairy page. Assumes she keeps the same traits through every refresh, and favors using as few Gratitude Crystals as possible.</footer>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/javascript-lp-solver@0.4.24/prod/solver.js"></script>
@@ -215,8 +215,8 @@
   var state = {
     element: "Light",
     level: 1,
-    skillName: "Magic Fountain+",
-    pointsLeft: {Shrewd:215, Eager:195, Valiant:200, Relaxed:205, Aspiring:185},
+    skillName: "",
+    pointsLeft: {},
     tiers: {bronze:true, silver:true, gold:true},
     excludedFoods: new Set()
   };
@@ -233,6 +233,9 @@
   elFairyElement.value = state.element;
   elFairyLevel.value = state.level;
 
+  var noneOpt = document.createElement("option");
+  noneOpt.value = ""; noneOpt.textContent = "— Select a Rental Skill —";
+  elSkillSelect.appendChild(noneOpt);
   SKILLS.forEach(function(s){
     var opt = document.createElement("option");
     opt.value = s.name; opt.textContent = s.name;
@@ -278,14 +281,17 @@
     var skill = SKILLS.find(function(s){ return s.name === state.skillName; });
     elSkillDesc.textContent = skill ? skill.desc : "";
     elPointsLeftRows.innerHTML = "";
-    if (!skill) return;
+    if (!skill){
+      elPointsLeftRows.innerHTML = '<p class="hint" style="margin:0;">Pick a Rental Skill above to see its traits.</p>';
+      return;
+    }
     Object.keys(skill.req).forEach(function(trait){
       var full = skill.req[trait];
       var row = document.createElement("div");
       row.className = "trait-row single";
       var label = document.createElement("label");
       label.className = "field";
-      label.textContent = trait + " — points left (needs " + full + " total)";
+      label.textContent = trait + " — points left (of " + full + ")";
       var num = document.createElement("input");
       num.type = "number"; num.min = "0"; num.max = String(full); num.step = "1";
       var existing = state.pointsLeft[trait];
@@ -457,6 +463,10 @@
 
   function calculate(){
     var skill = SKILLS.find(function(s){ return s.name === state.skillName; });
+    if (!skill){
+      elResults.innerHTML = '<p class="hint" style="margin:0;">Pick a Rental Skill and enter her points left to see a feeding plan.</p>';
+      return;
+    }
     var targets = {};
     Object.keys(skill.req).forEach(function(trait){ targets[trait] = skill.req[trait]; });
 
@@ -547,7 +557,7 @@
       html += renderCycleTable(cycles[0], 0, targets);
     } else if (success) {
       html += '<div class="banner warn"><strong>This needs ' + (cycles.length - 1) + ' refresh' + (cycles.length - 1 === 1 ? '' : 'es') +
-        '</strong> — she\'ll hit level 99, get revived (back to level 1, keeping 10% of her current totals), and continue feeding. Trait-swapping on refresh isn\'t modeled, so this assumes she keeps the same 5 traits throughout.</div>';
+        '</strong> — she\'ll hit level 99, revive at level 1 keeping 10% of her totals, and keep feeding.</div>';
       var totalItems = cycles.reduce(function(s,c){ return s + c.rows.reduce(function(s2,r){return s2+r.qty;},0); }, 0);
       var totalCrystals = cycles.reduce(function(s,c){ return s + c.crystalsUsed; }, 0);
       html += '<div class="summary-stats">' +
@@ -562,7 +572,7 @@
     } else {
       var ceiling = cycles.length ? cycles[cycles.length - 1].haveAfter : have;
       html += '<div class="banner danger"><strong>Not possible, even with unlimited refreshes.</strong> ' +
-        'Feeding plateaus below target because each refresh keeps only 10% of her totals, which caps out at a ceiling this skill\'s requirements exceed.</div>';
+        'Refreshing only keeps 10% of her totals, and that plateaus below what this skill needs.</div>';
       html += '<div class="table-wrap"><table><thead><tr><th>Trait</th><th class="num">Target</th><th class="num">Ceiling reached</th></tr></thead><tbody>';
       Object.keys(targets).forEach(function(t){
         var short = targets[t] - ceiling[t] > 0;
@@ -570,7 +580,7 @@
           (short ? ' style="color:var(--danger); font-weight:600;"' : '') + '>' + ceiling[t] + '</td></tr>';
       });
       html += '</tbody></table></div>';
-      html += '<p class="hint" style="margin-top:10px;">Feeding plan settled into a repeating ' + cycles.length + '-cycle steady state (shown above) without reaching target. This assumes the same 5 traits are kept every refresh — swapping a trait for a fresh one at some point could change the outcome.</p>';
+      html += '<p class="hint" style="margin-top:10px;">Settled into a repeating ' + cycles.length + '-cycle pattern (shown above) without reaching target.</p>';
       cycles.forEach(function(cycle, idx){
         html += renderCycleTable(cycle, idx, targets);
         if (idx < cycles.length - 1) html += '<div class="refresh-arrow">↓ refresh (revive to level 1, keep 10% of totals) ↓</div>';
