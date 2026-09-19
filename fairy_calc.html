@@ -1,0 +1,585 @@
+<title>Fairy Feed Planner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#f4efe2;
+    --surface:#fffdf7;
+    --surface-2:#eee6d2;
+    --text:#2a2340;
+    --text-dim:#6a6180;
+    --border:#ddd2b4;
+    --accent:#6a4fd6;
+    --accent-2:#1f9e91;
+    --accent-ink:#ffffff;
+    --good:#1f7a4d;
+    --good-bg:#e2f3e8;
+    --warn:#8a5a10;
+    --warn-bg:#faf0d9;
+    --danger:#a23b32;
+    --danger-bg:#fbe7e4;
+    --chip-bg:#efe8fb;
+    --shadow: 0 1px 2px rgba(40,30,70,.06), 0 4px 16px rgba(40,30,70,.06);
+    font-synthesis: none;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#171426; --surface:#1f1b32; --surface-2:#262040; --text:#efe9ff; --text-dim:#a89dc9;
+      --border:#3a3358; --accent:#a68bff; --accent-2:#4fe0d3; --accent-ink:#1a1330;
+      --good:#63d999; --good-bg:#163527; --warn:#e8b95c; --warn-bg:#3a2d10;
+      --danger:#ef8478; --danger-bg:#3c1f1c; --chip-bg:#2c2650;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#171426; --surface:#1f1b32; --surface-2:#262040; --text:#efe9ff; --text-dim:#a89dc9;
+    --border:#3a3358; --accent:#a68bff; --accent-2:#4fe0d3; --accent-ink:#1a1330;
+    --good:#63d999; --good-bg:#163527; --warn:#e8b95c; --warn-bg:#3a2d10;
+    --danger:#ef8478; --danger-bg:#3c1f1c; --chip-bg:#2c2650;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  *{ box-sizing:border-box; }
+  body{
+    background:var(--bg); color:var(--text); font-family:"Work Sans", system-ui, sans-serif;
+    padding-inline:16px; padding-block:28px 48px; display:flex; justify-content:center;
+  }
+  main{ width:100%; max-width:980px; display:flex; flex-direction:column; gap:22px; }
+
+  h1,h2,h3{ font-family:"Cinzel","Work Sans",serif; margin:0; letter-spacing:.01em; }
+  header.page{ display:flex; flex-direction:column; gap:6px; }
+  header.page h1{ font-size:clamp(1.5rem,4vw,2.1rem); font-weight:700; text-wrap:balance; }
+  header.page p{ margin:0; color:var(--text-dim); font-size:.95rem; max-width:64ch; }
+
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px; box-shadow:var(--shadow); }
+  .card h2{ font-size:1.05rem; font-weight:700; margin-bottom:4px; }
+  .card h3{ font-size:.92rem; font-weight:700; margin:0; }
+  .card .hint{ color:var(--text-dim); font-size:.82rem; margin:0 0 14px; }
+
+  label.field{ display:flex; flex-direction:column; gap:5px; font-size:.82rem; color:var(--text-dim); font-weight:500; }
+  select, input[type=number]{
+    font-family:inherit; font-size:.95rem; color:var(--text);
+    background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+    padding:8px 10px; width:100%;
+  }
+  input[type=number]{ font-family:"JetBrains Mono", monospace; font-variant-numeric:tabular-nums; }
+  select:focus, input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+
+  .setup-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+  @media (max-width:560px){ .setup-row{ grid-template-columns:1fr; } }
+  .trait-row{ display:grid; grid-template-columns:1.3fr 1fr; gap:10px; align-items:end; margin-bottom:10px; }
+  .trait-row.single{ grid-template-columns:1fr; }
+  .trait-row:last-child{ margin-bottom:0; }
+
+  .chip-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  .chip{ display:inline-flex; align-items:baseline; gap:5px; background:var(--chip-bg); color:var(--text); border-radius:999px; padding:5px 12px; font-size:.82rem; font-weight:500; }
+  .chip .n{ font-family:"JetBrains Mono",monospace; font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600; }
+
+  details.adv{ border-top:1px solid var(--border); margin-top:16px; padding-top:14px; }
+  details.adv summary{ cursor:pointer; font-weight:600; font-size:.88rem; color:var(--accent); list-style:none; }
+  details.adv summary::-webkit-details-marker{ display:none; }
+  details.adv summary::before{ content:"▸ "; }
+  details.adv[open] summary::before{ content:"▾ "; }
+
+  .tier-toggles{ display:flex; gap:16px; margin:12px 0 16px; flex-wrap:wrap; }
+  .tier-toggles label{ display:flex; align-items:center; gap:6px; font-size:.85rem; }
+
+  .food-groups{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px; }
+  .food-group h4{ font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); margin:0 0 6px; }
+  .food-group label{ display:flex; align-items:center; gap:6px; font-size:.83rem; padding:2px 0; }
+
+  .actions{ display:flex; justify-content:flex-end; }
+  button.primary{
+    font-family:inherit; font-size:.95rem; font-weight:700; color:var(--accent-ink);
+    background:var(--accent); border:none; border-radius:10px; padding:12px 22px; cursor:pointer; box-shadow:var(--shadow);
+  }
+  button.primary:hover{ filter:brightness(1.06); }
+  button.primary:active{ filter:brightness(0.96); }
+
+  .banner{ border-radius:10px; padding:12px 14px; font-size:.88rem; margin-bottom:14px; }
+  .banner.warn{ background:var(--warn-bg); color:var(--warn); }
+  .banner.good{ background:var(--good-bg); color:var(--good); }
+  .banner.danger{ background:var(--danger-bg); color:var(--danger); }
+
+  table{ width:100%; border-collapse:collapse; font-size:.88rem; }
+  th,td{ text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); }
+  th{ font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); font-weight:600; }
+  td.num, th.num{ text-align:right; font-family:"JetBrains Mono",monospace; font-variant-numeric:tabular-nums; }
+  tr.total td{ border-bottom:none; border-top:2px solid var(--border); font-weight:700; }
+  .table-wrap{ overflow-x:auto; }
+  .tier-badge{ display:inline-block; font-size:.66rem; text-transform:uppercase; letter-spacing:.04em; padding:2px 7px; border-radius:5px; font-weight:700; }
+  .tier-badge.bronze{ background:#e3c39a55; color:#8a5a25; }
+  .tier-badge.silver{ background:#c9cdd955; color:#5b6474; }
+  .tier-badge.gold{ background:#f0cf6a55; color:#8a6d10; }
+  :root:not([data-theme="light"]) .tier-badge.bronze, :root[data-theme="dark"] .tier-badge.bronze{ color:#e0b37c; }
+  :root:not([data-theme="light"]) .tier-badge.silver, :root[data-theme="dark"] .tier-badge.silver{ color:#cfd5e2; }
+  :root:not([data-theme="light"]) .tier-badge.gold, :root[data-theme="dark"] .tier-badge.gold{ color:#f2da8f; }
+
+  .summary-stats{ display:flex; gap:22px; flex-wrap:wrap; margin-bottom:16px; }
+  .stat{ display:flex; flex-direction:column; gap:2px; }
+  .stat .v{ font-family:"JetBrains Mono",monospace; font-size:1.5rem; font-weight:600; color:var(--accent); }
+  .stat .l{ font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); }
+
+  .cycle-block{ border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:14px; background:var(--surface-2); }
+  .cycle-block:last-child{ margin-bottom:0; }
+  .cycle-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; flex-wrap:wrap; gap:6px; }
+  .cycle-head .lv{ font-size:.78rem; color:var(--text-dim); font-family:"JetBrains Mono",monospace; }
+  .refresh-arrow{ text-align:center; color:var(--accent); font-size:.8rem; font-weight:600; margin:6px 0 14px; }
+
+  footer.note{ font-size:.78rem; color:var(--text-dim); text-align:center; max-width:70ch; margin-inline:auto; }
+</style>
+
+<main>
+  <header class="page">
+    <h1>Fairy Feed Planner</h1>
+    <p>Set a Companion Fairy's element and level, pick the Rental Skill you want to unlock, then type in how many points she still needs for each trait — exactly what the game shows you, so there's no maths to do yourself. Get back a feeding plan that covers as much ground as possible, uses as few Gratitude Crystals as it can get away with, and is cheapest in levels after that — including a refresh-by-refresh plan if it can't be done before she caps out at level 99.</p>
+  </header>
+
+  <section class="card">
+    <h2>Your Fairy</h2>
+    <p class="hint">Feeding food also levels her up (Bronze +1, Silver +2, Gold +3) — she can't be fed past level 99 without a refresh first.</p>
+
+    <div class="setup-row">
+      <label class="field">
+        Element
+        <select id="fairyElement">
+          <option>Light</option><option>Darkness</option><option>Fire</option><option>Water</option><option>Lightning</option>
+        </select>
+      </label>
+      <label class="field">
+        Current level
+        <input type="number" id="fairyLevel" min="1" max="99" step="1" value="1">
+      </label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Target</h2>
+    <p class="hint">Pick the Rental Skill you want to unlock — she needs to already be holding all of its required traits (a fairy can only hold 5 of the 10 at once). Then enter how many points are still needed for each trait, exactly as the game shows on her stats screen.</p>
+
+    <label class="field" style="margin-bottom:12px;">
+      Rental skill
+      <select id="skillSelect"></select>
+    </label>
+    <p class="hint" id="skillDesc" style="margin-bottom:8px;"></p>
+    <div id="pointsLeftRows"></div>
+
+    <details class="adv">
+      <summary>Advanced: food availability</summary>
+      <div class="tier-toggles">
+        <label><input type="checkbox" id="tierBronze" checked> Bronze unlocked</label>
+        <label><input type="checkbox" id="tierSilver" checked> Silver unlocked</label>
+        <label><input type="checkbox" id="tierGold" checked> Gold unlocked</label>
+      </div>
+      <p class="hint">Uncheck any specific foods you haven't unlocked yet in Adventure Mode — everything is assumed available by default.</p>
+      <div class="food-groups" id="foodGroups"></div>
+    </details>
+
+    <div class="actions" style="margin-top:18px;">
+      <button type="button" class="primary" id="calcBtn">Calculate feeding plan</button>
+    </div>
+  </section>
+
+  <section class="card" id="resultsCard">
+    <h2>Feeding Plan</h2>
+    <div id="results"></div>
+  </section>
+
+  <footer class="note">Data sourced from the Zelda Wiki's My Fairy page (Hyrule Warriors: Definitive Edition trait names). Assumes your fairy already holds every trait the chosen skill needs (as she must, to be tracking that skill in-game) and that a refresh keeps the same traits (trait-swapping on refresh isn't modeled yet); rounds the 10%-retention down to the nearest whole point. Plans favor using as few Gratitude Crystals as possible, since they're much harder to earn than other food.</footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/javascript-lp-solver@0.4.24/prod/solver.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var DATA = {"traits":["Dizzy","Aspiring","Eager","Valiant","Shrewd","Friendly","Resolute","Smiley","Relaxed","Sparkly"],"matchMap":{"10":12,"5":6,"2":3,"-1":2,"-2":1,"-5":-2},"foods":[{"name":"All-Purpose Bait","element":"Light","type":"Feast","tier":"bronze","levelGain":1,"traits":{"Friendly":2,"Resolute":2,"Smiley":2,"Valiant":-1}},{"name":"All-Purpose Bait","element":"Light","type":"Feast","tier":"silver","levelGain":2,"traits":{"Friendly":5,"Smiley":5,"Resolute":2,"Sparkly":2,"Eager":-2}},{"name":"All-Purpose Bait","element":"Light","type":"Feast","tier":"gold","levelGain":3,"traits":{"Smiley":10,"Friendly":5,"Resolute":5,"Valiant":2,"Sparkly":2,"Aspiring":-2,"Shrewd":-2,"Eager":-5}},{"name":"Bee Larvae","element":"Lightning","type":"Weird","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Valiant":2,"Resolute":2,"Aspiring":-1}},{"name":"Bee Larvae","element":"Lightning","type":"Weird","tier":"silver","levelGain":2,"traits":{"Eager":5,"Valiant":5,"Relaxed":2,"Resolute":2,"Smiley":-2}},{"name":"Bee Larvae","element":"Lightning","type":"Weird","tier":"gold","levelGain":3,"traits":{"Eager":10,"Valiant":5,"Resolute":5,"Relaxed":2,"Aspiring":2,"Dizzy":-2,"Shrewd":-2,"Smiley":-5}},{"name":"Bombfish","element":"Darkness","type":"Weird","tier":"bronze","levelGain":1,"traits":{"Eager":5,"Valiant":2,"Resolute":2,"Relaxed":-1}},{"name":"Bombfish","element":"Darkness","type":"Weird","tier":"silver","levelGain":2,"traits":{"Eager":5,"Valiant":5,"Aspiring":2,"Resolute":2,"Smiley":-2}},{"name":"Bombfish","element":"Darkness","type":"Weird","tier":"gold","levelGain":3,"traits":{"Eager":10,"Valiant":5,"Resolute":5,"Aspiring":2,"Relaxed":2,"Dizzy":-2,"Shrewd":-2,"Smiley":-5}},{"name":"Bottled Water","element":"Water","type":"Drink","tier":"bronze","levelGain":1,"traits":{"Shrewd":2,"Friendly":2,"Relaxed":2,"Valiant":-1}},{"name":"Bottled Water","element":"Water","type":"Drink","tier":"silver","levelGain":2,"traits":{"Friendly":5,"Relaxed":5,"Eager":2,"Shrewd":2,"Aspiring":-2}},{"name":"Bottled Water","element":"Water","type":"Drink","tier":"gold","levelGain":3,"traits":{"Friendly":10,"Shrewd":5,"Relaxed":5,"Eager":2,"Valiant":2,"Resolute":-2,"Sparkly":-2,"Aspiring":-5}},{"name":"Carrot","element":"Lightning","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Valiant":2,"Shrewd":2,"Smiley":2,"Sparkly":-1}},{"name":"Carrot","element":"Lightning","type":"Plant","tier":"silver","levelGain":2,"traits":{"Shrewd":5,"Smiley":5,"Valiant":2,"Friendly":2,"Resolute":-2}},{"name":"Carrot","element":"Lightning","type":"Plant","tier":"gold","levelGain":3,"traits":{"Shrewd":10,"Valiant":5,"Smiley":5,"Friendly":2,"Sparkly":2,"Dizzy":-2,"Eager":-2,"Resolute":-5}},{"name":"Chateau Romani","element":"Darkness","type":"Drink","tier":"bronze","levelGain":1,"traits":{"Friendly":2,"Shrewd":2,"Relaxed":2,"Valiant":-1}},{"name":"Chateau Romani","element":"Darkness","type":"Drink","tier":"silver","levelGain":2,"traits":{"Friendly":5,"Relaxed":5,"Eager":2,"Shrewd":2,"Aspiring":-2}},{"name":"Chateau Romani","element":"Darkness","type":"Drink","tier":"gold","levelGain":3,"traits":{"Friendly":10,"Shrewd":5,"Relaxed":5,"Eager":2,"Valiant":2,"Sparkly":-2,"Resolute":-2,"Aspiring":-5}},{"name":"Chu Jelly","element":"Lightning","type":"Weird","tier":"bronze","levelGain":1,"traits":{"Valiant":2,"Resolute":2,"Relaxed":2,"Aspiring":-1}},{"name":"Chu Jelly","element":"Lightning","type":"Weird","tier":"silver","levelGain":2,"traits":{"Resolute":5,"Relaxed":5,"Eager":2,"Valiant":2,"Shrewd":-2}},{"name":"Chu Jelly","element":"Lightning","type":"Weird","tier":"gold","levelGain":3,"traits":{"Resolute":10,"Valiant":5,"Relaxed":5,"Aspiring":2,"Eager":2,"Dizzy":-2,"Sparkly":-2,"Shrewd":-5}},{"name":"Deku Nut","element":"Lightning","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Valiant":2,"Friendly":2,"Resolute":2,"Sparkly":-1}},{"name":"Deku Nut","element":"Lightning","type":"Plant","tier":"silver","levelGain":2,"traits":{"Valiant":5,"Friendly":5,"Eager":2,"Resolute":2,"Aspiring":-2}},{"name":"Deku Nut","element":"Lightning","type":"Plant","tier":"gold","levelGain":3,"traits":{"Friendly":10,"Valiant":5,"Resolute":5,"Eager":2,"Sparkly":2,"Dizzy":-2,"Shrewd":-2,"Aspiring":-5}},{"name":"Elixir Soup","element":"Fire","type":"Drink","tier":"bronze","levelGain":1,"traits":{"Friendly":2,"Resolute":2,"Smiley":2,"Valiant":-1}},{"name":"Elixir Soup","element":"Fire","type":"Drink","tier":"silver","levelGain":2,"traits":{"Resolute":5,"Smiley":5,"Friendly":2,"Sparkly":2,"Eager":-2}},{"name":"Elixir Soup","element":"Fire","type":"Drink","tier":"gold","levelGain":3,"traits":{"Smiley":10,"Friendly":5,"Resolute":5,"Valiant":2,"Sparkly":2,"Aspiring":-2,"Shrewd":-2,"Eager":-5}},{"name":"Ember Seeds","element":"Fire","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Valiant":2,"Shrewd":2,"Friendly":-1}},{"name":"Ember Seeds","element":"Fire","type":"Plant","tier":"silver","levelGain":2,"traits":{"Eager":5,"Valiant":5,"Shrewd":2,"Relaxed":2,"Dizzy":-2}},{"name":"Ember Seeds","element":"Fire","type":"Plant","tier":"gold","levelGain":3,"traits":{"Valiant":10,"Eager":5,"Shrewd":5,"Friendly":2,"Relaxed":2,"Resolute":-2,"Smiley":-2,"Dizzy":-5}},{"name":"Gale Seeds","element":"Water","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Valiant":2,"Friendly":2,"Relaxed":2,"Eager":-1}},{"name":"Gale Seeds","element":"Water","type":"Plant","tier":"silver","levelGain":2,"traits":{"Valiant":5,"Friendly":5,"Shrewd":2,"Relaxed":2,"Dizzy":-2}},{"name":"Gale Seeds","element":"Water","type":"Plant","tier":"gold","levelGain":3,"traits":{"Valiant":10,"Friendly":5,"Relaxed":5,"Shrewd":2,"Eager":2,"Aspiring":-2,"Sparkly":-2,"Dizzy":-5}},{"name":"Great Fairy's Tears","element":"Light","type":"Drink","tier":"bronze","levelGain":1,"traits":{"Aspiring":2,"Resolute":2,"Relaxed":2,"Eager":-1}},{"name":"Great Fairy's Tears","element":"Light","type":"Drink","tier":"silver","levelGain":2,"traits":{"Aspiring":5,"Relaxed":5,"Valiant":2,"Resolute":2,"Friendly":-2}},{"name":"Great Fairy's Tears","element":"Light","type":"Drink","tier":"gold","levelGain":3,"traits":{"Aspiring":10,"Resolute":5,"Relaxed":5,"Eager":2,"Valiant":2,"Shrewd":-2,"Sparkly":-2,"Friendly":-5}},{"name":"Greengill","element":"Water","type":"Fish","tier":"bronze","levelGain":1,"traits":{"Aspiring":2,"Eager":2,"Resolute":2,"Valiant":-1}},{"name":"Greengill","element":"Water","type":"Fish","tier":"silver","levelGain":2,"traits":{"Aspiring":5,"Eager":5,"Resolute":2,"Relaxed":2,"Friendly":-2}},{"name":"Greengill","element":"Water","type":"Fish","tier":"gold","levelGain":3,"traits":{"Aspiring":10,"Eager":5,"Resolute":5,"Valiant":2,"Relaxed":2,"Shrewd":-2,"Smiley":-2,"Friendly":-5}},{"name":"Hot Spring Water","element":"Fire","type":"Drink","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Shrewd":2,"Relaxed":2,"Friendly":-1}},{"name":"Hot Spring Water","element":"Fire","type":"Drink","tier":"silver","levelGain":2,"traits":{"Eager":5,"Relaxed":5,"Valiant":2,"Shrewd":2,"Sparkly":-2}},{"name":"Hot Spring Water","element":"Fire","type":"Drink","tier":"gold","levelGain":3,"traits":{"Relaxed":10,"Eager":5,"Shrewd":5,"Valiant":2,"Friendly":2,"Resolute":-2,"Smiley":-2,"Sparkly":-5}},{"name":"Hylian Loach","element":"Water","type":"Fish","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Aspiring":2,"Relaxed":2,"Valiant":-1}},{"name":"Hylian Loach","element":"Water","type":"Fish","tier":"silver","levelGain":2,"traits":{"Eager":5,"Aspiring":5,"Resolute":2,"Relaxed":2,"Smiley":-2}},{"name":"Hylian Loach","element":"Water","type":"Fish","tier":"gold","levelGain":3,"traits":{"Eager":10,"Aspiring":5,"Relaxed":5,"Valiant":2,"Resolute":2,"Friendly":-2,"Sparkly":-2,"Smiley":-5}},{"name":"Hylian Pike","element":"Water","type":"Fish","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Resolute":2,"Relaxed":2,"Aspiring":-1}},{"name":"Hylian Pike","element":"Water","type":"Fish","tier":"silver","levelGain":2,"traits":{"Eager":5,"Resolute":5,"Valiant":2,"Relaxed":2,"Shrewd":-2}},{"name":"Hylian Pike","element":"Water","type":"Fish","tier":"gold","levelGain":3,"traits":{"Resolute":10,"Eager":5,"Relaxed":5,"Aspiring":2,"Valiant":2,"Smiley":-2,"Sparkly":-2,"Shrewd":-5}},{"name":"Hyoi Pear","element":"Lightning","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Valiant":2,"Friendly":2,"Smiley":2,"Sparkly":-1}},{"name":"Hyoi Pear","element":"Lightning","type":"Plant","tier":"silver","levelGain":2,"traits":{"Valiant":5,"Smiley":5,"Friendly":2,"Resolute":2,"Eager":-2}},{"name":"Hyoi Pear","element":"Lightning","type":"Plant","tier":"gold","levelGain":3,"traits":{"Smiley":10,"Valiant":5,"Friendly":5,"Resolute":2,"Sparkly":2,"Dizzy":-2,"Aspiring":-2,"Eager":-5}},{"name":"Hyrule Bass","element":"Water","type":"Fish","tier":"bronze","levelGain":1,"traits":{"Relaxed":2,"Resolute":2,"Valiant":2,"Eager":-1}},{"name":"Hyrule Bass","element":"Water","type":"Fish","tier":"silver","levelGain":2,"traits":{"Relaxed":5,"Resolute":5,"Valiant":2,"Aspiring":2,"Sparkly":-2}},{"name":"Hyrule Bass","element":"Water","type":"Fish","tier":"gold","levelGain":3,"traits":{"Relaxed":10,"Resolute":5,"Valiant":5,"Aspiring":2,"Eager":2,"Shrewd":-2,"Dizzy":-2,"Sparkly":-5}},{"name":"Life Tree Fruit","element":"Light","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Friendly":2,"Resolute":2,"Dizzy":-1}},{"name":"Life Tree Fruit","element":"Light","type":"Plant","tier":"silver","levelGain":2,"traits":{"Friendly":5,"Resolute":5,"Eager":2,"Sparkly":2,"Aspiring":-2}},{"name":"Life Tree Fruit","element":"Light","type":"Plant","tier":"gold","levelGain":3,"traits":{"Friendly":10,"Eager":5,"Resolute":5,"Dizzy":2,"Sparkly":2,"Shrewd":-2,"Smiley":-2,"Aspiring":-5}},{"name":"Light Fruit","element":"Light","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Friendly":2,"Sparkly":2,"Dizzy":-1}},{"name":"Light Fruit","element":"Light","type":"Plant","tier":"silver","levelGain":2,"traits":{"Friendly":5,"Sparkly":5,"Eager":2,"Resolute":2,"Relaxed":-2}},{"name":"Light Fruit","element":"Light","type":"Plant","tier":"gold","levelGain":3,"traits":{"Sparkly":10,"Eager":5,"Friendly":5,"Dizzy":2,"Resolute":2,"Aspiring":-2,"Smiley":-2,"Relaxed":-5}},{"name":"Lon Lon Milk","element":"Light","type":"Drink","tier":"bronze","levelGain":1,"traits":{"Resolute":5,"Eager":2,"Sparkly":2,"Valiant":-1}},{"name":"Lon Lon Milk","element":"Light","type":"Drink","tier":"silver","levelGain":2,"traits":{"Eager":5,"Resolute":5,"Friendly":2,"Sparkly":2,"Shrewd":-2}},{"name":"Lon Lon Milk","element":"Light","type":"Drink","tier":"gold","levelGain":3,"traits":{"Resolute":10,"Eager":5,"Sparkly":5,"Valiant":2,"Friendly":2,"Smiley":-2,"Relaxed":-2,"Shrewd":-5}},{"name":"Magic Beans","element":"Water","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Friendly":2,"Sparkly":2,"Valiant":-1}},{"name":"Magic Beans","element":"Water","type":"Plant","tier":"silver","levelGain":2,"traits":{"Friendly":5,"Sparkly":5,"Eager":2,"Resolute":2,"Aspiring":-2}},{"name":"Magic Beans","element":"Water","type":"Plant","tier":"gold","levelGain":3,"traits":{"Friendly":10,"Eager":5,"Sparkly":5,"Resolute":2,"Valiant":2,"Smiley":-2,"Relaxed":-2,"Aspiring":-5}},{"name":"Meat","element":"Fire","type":"Feast","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Valiant":2,"Shrewd":2,"Relaxed":-1}},{"name":"Meat","element":"Fire","type":"Feast","tier":"silver","levelGain":2,"traits":{"Valiant":5,"Shrewd":5,"Eager":2,"Friendly":2,"Dizzy":-2}},{"name":"Meat","element":"Fire","type":"Feast","tier":"gold","levelGain":3,"traits":{"Valiant":10,"Eager":5,"Shrewd":5,"Friendly":2,"Relaxed":2,"Resolute":-2,"Smiley":-2,"Dizzy":-5}},{"name":"Mushroom Spores","element":"Lightning","type":"Weird","tier":"bronze","levelGain":1,"traits":{"Dizzy":2,"Friendly":2,"Sparkly":2,"Resolute":-1}},{"name":"Mushroom Spores","element":"Lightning","type":"Weird","tier":"silver","levelGain":2,"traits":{"Friendly":5,"Sparkly":5,"Dizzy":2,"Eager":2,"Relaxed":-2}},{"name":"Mushroom Spores","element":"Lightning","type":"Weird","tier":"gold","levelGain":3,"traits":{"Sparkly":10,"Dizzy":5,"Friendly":5,"Eager":2,"Resolute":2,"Aspiring":-2,"Valiant":-2,"Relaxed":-5}},{"name":"Mystery Seeds","element":"Light","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Valiant":2,"Friendly":2,"Relaxed":2,"Shrewd":-1}},{"name":"Mystery Seeds","element":"Light","type":"Plant","tier":"silver","levelGain":2,"traits":{"Friendly":5,"Relaxed":5,"Eager":2,"Valiant":2,"Aspiring":-2}},{"name":"Mystery Seeds","element":"Light","type":"Plant","tier":"gold","levelGain":3,"traits":{"Friendly":10,"Valiant":5,"Relaxed":5,"Eager":2,"Shrewd":2,"Dizzy":-2,"Sparkly":-2,"Aspiring":-5}},{"name":"Odd Mushroom","element":"Darkness","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Valiant":2,"Friendly":2,"Resolute":2,"Eager":-1}},{"name":"Odd Mushroom","element":"Darkness","type":"Plant","tier":"silver","levelGain":2,"traits":{"Valiant":5,"Resolute":5,"Friendly":2,"Sparkly":2,"Dizzy":-2}},{"name":"Odd Mushroom","element":"Darkness","type":"Plant","tier":"gold","levelGain":3,"traits":{"Valiant":10,"Friendly":5,"Resolute":5,"Eager":2,"Sparkly":2,"Aspiring":-2,"Shrewd":-2,"Dizzy":-5}},{"name":"Ordon Catfish","element":"Water","type":"Fish","tier":"bronze","levelGain":1,"traits":{"Aspiring":2,"Valiant":2,"Relaxed":2,"Resolute":-1}},{"name":"Ordon Catfish","element":"Water","type":"Fish","tier":"silver","levelGain":2,"traits":{"Valiant":5,"Relaxed":5,"Aspiring":2,"Eager":2,"Sparkly":-2}},{"name":"Ordon Catfish","element":"Water","type":"Fish","tier":"gold","levelGain":3,"traits":{"Relaxed":10,"Aspiring":5,"Valiant":5,"Eager":2,"Resolute":2,"Dizzy":-2,"Friendly":-2,"Sparkly":-5}},{"name":"Ordon Goat Cheese","element":"Darkness","type":"Feast","tier":"bronze","levelGain":1,"traits":{"Valiant":2,"Resolute":2,"Relaxed":2,"Eager":-1}},{"name":"Ordon Goat Cheese","element":"Darkness","type":"Feast","tier":"silver","levelGain":2,"traits":{"Valiant":5,"Resolute":5,"Aspiring":2,"Relaxed":2,"Dizzy":-2}},{"name":"Ordon Goat Cheese","element":"Darkness","type":"Feast","tier":"gold","levelGain":3,"traits":{"Valiant":10,"Resolute":5,"Relaxed":5,"Aspiring":2,"Eager":2,"Shrewd":-2,"Sparkly":-2,"Dizzy":-5}},{"name":"Pegasus Seeds","element":"Lightning","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Shrewd":2,"Friendly":2,"Relaxed":-1}},{"name":"Pegasus Seeds","element":"Lightning","type":"Plant","tier":"silver","levelGain":2,"traits":{"Eager":5,"Shrewd":5,"Valiant":2,"Friendly":2,"Resolute":-2}},{"name":"Pegasus Seeds","element":"Lightning","type":"Plant","tier":"gold","levelGain":3,"traits":{"Shrewd":10,"Eager":5,"Friendly":5,"Valiant":2,"Relaxed":2,"Aspiring":-2,"Smiley":-2,"Resolute":-5}},{"name":"Pumpkin","element":"Light","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Friendly":2,"Resolute":2,"Sparkly":-1}},{"name":"Pumpkin","element":"Light","type":"Plant","tier":"silver","levelGain":2,"traits":{"Eager":5,"Friendly":5,"Dizzy":2,"Resolute":2,"Smiley":-2}},{"name":"Pumpkin","element":"Light","type":"Plant","tier":"gold","levelGain":3,"traits":{"Eager":10,"Friendly":5,"Resolute":5,"Dizzy":2,"Sparkly":2,"Aspiring":-2,"Shrewd":-2,"Smiley":-5}},{"name":"Pumpkin Soup","element":"Fire","type":"Drink","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Friendly":2,"Resolute":2,"Dizzy":-1}},{"name":"Pumpkin Soup","element":"Fire","type":"Drink","tier":"silver","levelGain":2,"traits":{"Eager":5,"Resolute":5,"Friendly":2,"Sparkly":2,"Shrewd":-2}},{"name":"Pumpkin Soup","element":"Fire","type":"Drink","tier":"gold","levelGain":3,"traits":{"Resolute":10,"Eager":5,"Friendly":5,"Dizzy":2,"Sparkly":2,"Aspiring":-2,"Smiley":-2,"Shrewd":-5}},{"name":"Reekfish","element":"Water","type":"Fish","tier":"bronze","levelGain":1,"traits":{"Valiant":2,"Resolute":2,"Relaxed":2,"Aspiring":-1}},{"name":"Reekfish","element":"Water","type":"Fish","tier":"silver","levelGain":2,"traits":{"Valiant":5,"Resolute":5,"Relaxed":2,"Eager":2,"Dizzy":-2}},{"name":"Reekfish","element":"Water","type":"Fish","tier":"gold","levelGain":3,"traits":{"Valiant":10,"Resolute":5,"Relaxed":5,"Eager":2,"Aspiring":2,"Sparkly":-2,"Shrewd":-2,"Dizzy":-5}},{"name":"Rock Sirloin","element":"Fire","type":"Weird","tier":"bronze","levelGain":1,"traits":{"Shrewd":2,"Valiant":2,"Eager":2,"Relaxed":-1}},{"name":"Rock Sirloin","element":"Fire","type":"Weird","tier":"silver","levelGain":2,"traits":{"Shrewd":5,"Valiant":5,"Eager":2,"Friendly":2,"Resolute":-2}},{"name":"Rock Sirloin","element":"Fire","type":"Weird","tier":"gold","levelGain":3,"traits":{"Shrewd":10,"Valiant":5,"Eager":5,"Friendly":2,"Relaxed":2,"Smiley":-2,"Dizzy":-2,"Resolute":-5}},{"name":"Sacred Water","element":"Water","type":"Drink","tier":"bronze","levelGain":1,"traits":{"Friendly":2,"Resolute":2,"Sparkly":2,"Dizzy":-1}},{"name":"Sacred Water","element":"Water","type":"Drink","tier":"silver","levelGain":2,"traits":{"Friendly":5,"Sparkly":5,"Eager":2,"Resolute":2,"Relaxed":-2}},{"name":"Sacred Water","element":"Water","type":"Drink","tier":"gold","levelGain":3,"traits":{"Sparkly":10,"Friendly":5,"Resolute":5,"Dizzy":2,"Eager":2,"Aspiring":-2,"Shrewd":-2,"Relaxed":-5}},{"name":"Scent Seeds","element":"Light","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Valiant":2,"Shrewd":2,"Friendly":2,"Eager":-1}},{"name":"Scent Seeds","element":"Light","type":"Plant","tier":"silver","levelGain":2,"traits":{"Valiant":5,"Shrewd":5,"Friendly":2,"Relaxed":2,"Resolute":-2}},{"name":"Scent Seeds","element":"Light","type":"Plant","tier":"gold","levelGain":3,"traits":{"Shrewd":10,"Valiant":5,"Friendly":5,"Eager":2,"Relaxed":2,"Aspiring":-2,"Dizzy":-2,"Resolute":-5}},{"name":"Skullfish","element":"Darkness","type":"Weird","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Valiant":2,"Resolute":2,"Relaxed":-1}},{"name":"Skullfish","element":"Darkness","type":"Weird","tier":"silver","levelGain":2,"traits":{"Eager":5,"Valiant":5,"Aspiring":2,"Resolute":2,"Smiley":-2}},{"name":"Skullfish","element":"Darkness","type":"Weird","tier":"gold","levelGain":3,"traits":{"Eager":10,"Valiant":5,"Resolute":5,"Aspiring":2,"Relaxed":2,"Shrewd":-2,"Dizzy":-2,"Smiley":-5}},{"name":"Stamina Fruit","element":"Fire","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Eager":2,"Resolute":2,"Sparkly":2,"Friendly":-1}},{"name":"Stamina Fruit","element":"Fire","type":"Plant","tier":"silver","levelGain":2,"traits":{"Resolute":5,"Sparkly":5,"Dizzy":2,"Eager":2,"Shrewd":-2}},{"name":"Stamina Fruit","element":"Fire","type":"Plant","tier":"gold","levelGain":3,"traits":{"Resolute":10,"Eager":5,"Sparkly":5,"Dizzy":2,"Friendly":2,"Smiley":-2,"Relaxed":-2,"Shrewd":-5}},{"name":"Water Fruit","element":"Water","type":"Plant","tier":"bronze","levelGain":1,"traits":{"Dizzy":2,"Friendly":2,"Resolute":2,"Sparkly":-1}},{"name":"Water Fruit","element":"Water","type":"Plant","tier":"silver","levelGain":2,"traits":{"Dizzy":5,"Resolute":5,"Eager":2,"Friendly":2,"Shrewd":-2}},{"name":"Water Fruit","element":"Water","type":"Plant","tier":"gold","levelGain":3,"traits":{"Resolute":10,"Friendly":5,"Dizzy":5,"Eager":2,"Sparkly":2,"Aspiring":-2,"Valiant":-2,"Shrewd":-5}},{"name":"Weird Egg","element":"Light","type":"Feast","tier":"bronze","levelGain":1,"traits":{"Valiant":2,"Resolute":2,"Sparkly":2,"Friendly":-1}},{"name":"Weird Egg","element":"Light","type":"Feast","tier":"silver","levelGain":2,"traits":{"Resolute":5,"Sparkly":5,"Eager":2,"Valiant":2,"Relaxed":-2}},{"name":"Weird Egg","element":"Light","type":"Feast","tier":"gold","levelGain":3,"traits":{"Sparkly":10,"Valiant":5,"Resolute":5,"Eager":2,"Friendly":2,"Dizzy":-2,"Shrewd":-2,"Relaxed":-5}},{"name":"Gratitude Crystal","element":"Light","type":"Crystal","tier":"silver","levelGain":2,"traits":{"Dizzy":5,"Aspiring":5,"Eager":5,"Valiant":5,"Shrewd":5,"Friendly":5,"Resolute":5,"Smiley":5,"Relaxed":5,"Sparkly":5}},{"name":"Gratitude Crystal","element":"Light","type":"Crystal","tier":"gold","levelGain":3,"traits":{"Dizzy":10,"Aspiring":10,"Eager":10,"Valiant":10,"Shrewd":10,"Friendly":10,"Resolute":10,"Smiley":10,"Relaxed":10,"Sparkly":10}},{"name":"Gratitude Crystal","element":"Darkness","type":"Crystal","tier":"silver","levelGain":2,"traits":{"Dizzy":5,"Aspiring":5,"Eager":5,"Valiant":5,"Shrewd":5,"Friendly":5,"Resolute":5,"Smiley":5,"Relaxed":5,"Sparkly":5}},{"name":"Gratitude Crystal","element":"Darkness","type":"Crystal","tier":"gold","levelGain":3,"traits":{"Dizzy":10,"Aspiring":10,"Eager":10,"Valiant":10,"Shrewd":10,"Friendly":10,"Resolute":10,"Smiley":10,"Relaxed":10,"Sparkly":10}},{"name":"Gratitude Crystal","element":"Fire","type":"Crystal","tier":"silver","levelGain":2,"traits":{"Dizzy":5,"Aspiring":5,"Eager":5,"Valiant":5,"Shrewd":5,"Friendly":5,"Resolute":5,"Smiley":5,"Relaxed":5,"Sparkly":5}},{"name":"Gratitude Crystal","element":"Fire","type":"Crystal","tier":"gold","levelGain":3,"traits":{"Dizzy":10,"Aspiring":10,"Eager":10,"Valiant":10,"Shrewd":10,"Friendly":10,"Resolute":10,"Smiley":10,"Relaxed":10,"Sparkly":10}},{"name":"Gratitude Crystal","element":"Water","type":"Crystal","tier":"silver","levelGain":2,"traits":{"Dizzy":5,"Aspiring":5,"Eager":5,"Valiant":5,"Shrewd":5,"Friendly":5,"Resolute":5,"Smiley":5,"Relaxed":5,"Sparkly":5}},{"name":"Gratitude Crystal","element":"Water","type":"Crystal","tier":"gold","levelGain":3,"traits":{"Dizzy":10,"Aspiring":10,"Eager":10,"Valiant":10,"Shrewd":10,"Friendly":10,"Resolute":10,"Smiley":10,"Relaxed":10,"Sparkly":10}},{"name":"Gratitude Crystal","element":"Lightning","type":"Crystal","tier":"silver","levelGain":2,"traits":{"Dizzy":5,"Aspiring":5,"Eager":5,"Valiant":5,"Shrewd":5,"Friendly":5,"Resolute":5,"Smiley":5,"Relaxed":5,"Sparkly":5}},{"name":"Gratitude Crystal","element":"Lightning","type":"Crystal","tier":"gold","levelGain":3,"traits":{"Dizzy":10,"Aspiring":10,"Eager":10,"Valiant":10,"Shrewd":10,"Friendly":10,"Resolute":10,"Smiley":10,"Relaxed":10,"Sparkly":10}}],"skills":[{"name":"Fill Special Attack","req":{"Valiant":75,"Sparkly":50},"desc":"Makes hearts restore your Special Attack gauge as well."},{"name":"Fill Magic","req":{"Dizzy":75,"Sparkly":50},"desc":"Makes hearts restore your Magic gauge as well."},{"name":"Heart Bonds","req":{"Eager":75,"Friendly":50},"desc":"Health replenishes according to the fairy's Trust."},{"name":"Special Bonds","req":{"Smiley":75,"Friendly":50},"desc":"Special Attack gauge replenishes according to the fairy's Trust."},{"name":"Magic Bonds","req":{"Dizzy":75,"Eager":50},"desc":"Magic gauge replenishes according to the fairy's Trust."},{"name":"Hard Worker","req":{"Sparkly":75,"Resolute":50},"desc":"Replenishes hearts when health reaches 0, but only once."},{"name":"Dream Sphere","req":{"Valiant":50,"Smiley":50},"desc":"Creates a shock wave that momentarily stops enemy movement."},{"name":"Invincible Weakling","req":{"Resolute":75,"Smiley":50},"desc":"Makes you invincible, but decreases your attack damage."},{"name":"Health Regain","req":{"Resolute":75,"Eager":50},"desc":"Replenishes health."},{"name":"Special Regain","req":{"Smiley":125,"Friendly":100,"Resolute":100},"desc":"Replenishes Special Attack gauge."},{"name":"Total Focus","req":{"Eager":125,"Friendly":100,"Resolute":100},"desc":"Replenishes health, Special Attack, and Magic gauge when inside allied keeps."},{"name":"Repair Technician","req":{"Resolute":125,"Friendly":100,"Sparkly":100},"desc":"Replenishes allied Keep gauges while inside allied keeps."},{"name":"Wall of Water","req":{"Smiley":125,"Valiant":100,"Sparkly":100},"desc":"A barrier appears that protects warriors from all damage."},{"name":"Keep Keeper","req":{"Valiant":125,"Resolute":100,"Smiley":100},"desc":"Attack damage increases when inside keeps."},{"name":"Marathon Runner","req":{"Friendly":125,"Smiley":100,"Sparkly":100},"desc":"Allows the warrior being controlled to move from one place to another much faster."},{"name":"Elemental Magician","req":{"Aspiring":125,"Eager":100,"Relaxed":100},"desc":"Weapon's attribute is overwritten by the fairy's main attribute."},{"name":"Health Sponge","req":{"Sparkly":125,"Dizzy":100,"Friendly":100},"desc":"Restores health every time you inflict damage on enemies."},{"name":"Special Sponge","req":{"Relaxed":125,"Aspiring":100,"Valiant":100},"desc":"Replenishes Special Attack gauge every time you inflict damage on enemies."},{"name":"Magic Sponge","req":{"Shrewd":125,"Eager":100,"Relaxed":100},"desc":"Replenishes Magic gauge every time you inflict damage on enemies."},{"name":"XP Master","req":{"Dizzy":125,"Eager":100,"Resolute":100},"desc":"Increases experience gained from defeating enemies."},{"name":"Rupee Master","req":{"Relaxed":125,"Shrewd":100,"Friendly":100},"desc":"Increases Rupees gained from defeating enemies."},{"name":"Material Master","req":{"Aspiring":225,"Resolute":225,"Valiant":200,"Relaxed":200},"desc":"Increases rare material drop rate."},{"name":"Food Master","req":{"Eager":225,"Relaxed":225,"Aspiring":200,"Resolute":200},"desc":"Increases food drop rate."},{"name":"Weapon Master","req":{"Shrewd":225,"Friendly":225,"Eager":200,"Relaxed":200},"desc":"Increases weapon drop rate."},{"name":"Extreme Gusts","req":{"Friendly":75,"Valiant":50},"desc":"Creates a shock wave that makes enemies get blown away when running."},{"name":"Extreme Evasion","req":{"Sparkly":125,"Eager":100,"Valiant":100},"desc":"Creates a shock wave that makes enemies trip when evading."},{"name":"Extreme Crush","req":{"Valiant":225,"Smiley":225,"Friendly":200,"Sparkly":200},"desc":"Creates a shock wave that knocks down surrounding enemies."},{"name":"Glass Cannon","req":{"Dizzy":225,"Friendly":225,"Resolute":200,"Sparkly":200},"desc":"Increases attack damage, but reduces your health and defenses to 1 hit."},{"name":"Special Fountain","req":{"Valiant":225,"Sparkly":225,"Eager":200,"Resolute":200},"desc":"Special Attack gauge stays maxed out."},{"name":"Magic Fountain","req":{"Eager":225,"Shrewd":225,"Valiant":200,"Relaxed":200},"desc":"Magic gauge stays maxed out."},{"name":"Wall of Water+","req":{"Smiley":225,"Sparkly":225,"Aspiring":200,"Valiant":200},"desc":"A barrier appears that protects warriors from all damage."},{"name":"XP Master+","req":{"Dizzy":225,"Resolute":225,"Eager":200,"Sparkly":200},"desc":"Increases experience gained from defeating enemies."},{"name":"Rupee Master+","req":{"Relaxed":225,"Dizzy":200,"Shrewd":200,"Friendly":200},"desc":"Increases Rupees gained from defeating enemies."},{"name":"Food Master+","req":{"Eager":255,"Aspiring":225,"Resolute":225,"Relaxed":225,"Valiant":200},"desc":"Increases food drop rate."},{"name":"Material Master+","req":{"Resolute":255,"Aspiring":225,"Valiant":225,"Relaxed":225,"Smiley":200},"desc":"Increases material drop rate."},{"name":"Weapon Master+","req":{"Friendly":225,"Eager":225,"Shrewd":225,"Relaxed":225,"Dizzy":200},"desc":"Increases weapon drop rate."},{"name":"Special Fountain+","req":{"Sparkly":255,"Eager":225,"Valiant":225,"Resolute":225,"Aspiring":200},"desc":"Special Attack gauge stays maxed out."},{"name":"Magic Fountain+","req":{"Shrewd":255,"Eager":225,"Valiant":225,"Relaxed":225,"Aspiring":200},"desc":"Magic gauge stays maxed out."},{"name":"Extreme Crush+","req":{"Smiley":255,"Valiant":225,"Friendly":225,"Sparkly":225,"Resolute":200},"desc":"Creates a shock wave that knocks down surrounding enemies."}]};
+
+  var MATCH_MAP = {};
+  Object.keys(DATA.matchMap).forEach(function(k){ MATCH_MAP[k] = DATA.matchMap[k]; });
+  var FOODS = DATA.foods;
+  var SKILLS = DATA.skills;
+  // A "food key" identifies a specific food+element combo (most foods only ever
+  // appear in one element, but Gratitude Crystals come in all five, so name alone
+  // isn't unique — this keeps exclusion/grouping/solver variable ids collision-free).
+  function foodKey(f){ return f.name + "||" + f.element; }
+  var FOOD_KEYS = Array.from(new Set(FOODS.map(foodKey))).sort();
+  var RETAIN_FRACTION = 0.10;
+  var MAX_LEVEL = 99;
+  var MAX_CYCLES = 25;
+
+  // ---------- state ----------
+  // pointsLeft holds, per trait relevant to the currently chosen skill, exactly
+  // what the game's own "points left" display shows — the player copies it in
+  // directly rather than tracking (and subtracting) the fairy's absolute trait
+  // totals themselves, which the game doesn't surface anyway.
+  var state = {
+    element: "Light",
+    level: 1,
+    skillName: "Magic Fountain+",
+    pointsLeft: {Shrewd:215, Eager:195, Valiant:200, Relaxed:205, Aspiring:185},
+    tiers: {bronze:true, silver:true, gold:true},
+    excludedFoods: new Set()
+  };
+
+  // ---------- DOM refs ----------
+  var elFairyElement = document.getElementById("fairyElement");
+  var elFairyLevel = document.getElementById("fairyLevel");
+  var elSkillSelect = document.getElementById("skillSelect");
+  var elSkillDesc = document.getElementById("skillDesc");
+  var elPointsLeftRows = document.getElementById("pointsLeftRows");
+  var elFoodGroups = document.getElementById("foodGroups");
+  var elResults = document.getElementById("results");
+
+  elFairyElement.value = state.element;
+  elFairyLevel.value = state.level;
+
+  SKILLS.forEach(function(s){
+    var opt = document.createElement("option");
+    opt.value = s.name; opt.textContent = s.name;
+    elSkillSelect.appendChild(opt);
+  });
+  elSkillSelect.value = state.skillName;
+
+  function renderFoodGroups(){
+    elFoodGroups.innerHTML = "";
+    var byElement = {};
+    FOOD_KEYS.forEach(function(key){
+      var f = FOODS.find(function(x){ return foodKey(x) === key; });
+      byElement[f.element] = byElement[f.element] || [];
+      byElement[f.element].push({ key: key, name: f.name });
+    });
+    Object.keys(byElement).sort().forEach(function(elem){
+      var group = document.createElement("div");
+      group.className = "food-group";
+      var h4 = document.createElement("h4");
+      h4.textContent = elem;
+      group.appendChild(h4);
+      byElement[elem].sort(function(a,b){ return a.name.localeCompare(b.name); }).forEach(function(entry){
+        var label = document.createElement("label");
+        var cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !state.excludedFoods.has(entry.key);
+        cb.addEventListener("change", function(){
+          if (cb.checked) state.excludedFoods.delete(entry.key);
+          else state.excludedFoods.add(entry.key);
+        });
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(entry.name));
+        group.appendChild(label);
+      });
+      elFoodGroups.appendChild(group);
+    });
+  }
+
+  // Shows the chosen skill's description, and one input per trait it needs so
+  // the player can type in exactly what the game's own "points left" display
+  // shows for their fairy — the tool never needs to know her absolute totals.
+  function renderSkillTarget(){
+    var skill = SKILLS.find(function(s){ return s.name === state.skillName; });
+    elSkillDesc.textContent = skill ? skill.desc : "";
+    elPointsLeftRows.innerHTML = "";
+    if (!skill) return;
+    Object.keys(skill.req).forEach(function(trait){
+      var full = skill.req[trait];
+      var row = document.createElement("div");
+      row.className = "trait-row single";
+      var label = document.createElement("label");
+      label.className = "field";
+      label.textContent = trait + " — points left (needs " + full + " total)";
+      var num = document.createElement("input");
+      num.type = "number"; num.min = "0"; num.max = String(full); num.step = "1";
+      var existing = state.pointsLeft[trait];
+      var val = existing !== undefined ? Math.max(0, Math.min(full, existing)) : full;
+      num.value = val;
+      state.pointsLeft[trait] = val;
+      num.addEventListener("input", function(){
+        var v = parseInt(num.value, 10);
+        if (isNaN(v)) v = 0;
+        state.pointsLeft[trait] = Math.max(0, Math.min(full, v));
+      });
+      label.appendChild(num);
+      row.appendChild(label);
+      elPointsLeftRows.appendChild(row);
+    });
+  }
+
+  renderFoodGroups();
+  renderSkillTarget();
+
+  // ---------- events ----------
+  elFairyElement.addEventListener("change", function(){ state.element = elFairyElement.value; });
+  elFairyLevel.addEventListener("input", function(){
+    var v = parseInt(elFairyLevel.value, 10);
+    if (isNaN(v)) v = 1;
+    state.level = Math.max(1, Math.min(99, v));
+  });
+  elSkillSelect.addEventListener("change", function(){
+    state.skillName = elSkillSelect.value;
+    state.pointsLeft = {}; // fresh skill, fresh "points left" entries
+    renderSkillTarget();
+  });
+
+  document.getElementById("tierBronze").addEventListener("change", function(e){ state.tiers.bronze = e.target.checked; });
+  document.getElementById("tierSilver").addEventListener("change", function(e){ state.tiers.silver = e.target.checked; });
+  document.getElementById("tierGold").addEventListener("change", function(e){ state.tiers.gold = e.target.checked; });
+
+  document.getElementById("calcBtn").addEventListener("click", calculate);
+
+  // ---------- helpers ----------
+  function matchedDelta(rawDelta, foodElement, fairyElement){
+    if (foodElement !== fairyElement) return rawDelta;
+    var key = String(rawDelta);
+    return (key in MATCH_MAP) ? MATCH_MAP[key] : rawDelta;
+  }
+
+  // Solve one feeding cycle with a strict priority order: (1) cover as much of
+  // `remaining` as possible within `budget` levels, (2) among equally-good
+  // plans, use as few Gratitude Crystals as possible (they're much harder to
+  // earn than regular food), (3) among those, spend as few levels as possible.
+  // This is one weighted-objective MIP solve: because every food's level cost
+  // is bounded by `budget` itself (the levelBudget constraint enforces that
+  // directly), the maximum possible combined "crystal + level" score swing is
+  // bounded, so choosing weights comfortably above that bound guarantees
+  // coverage always wins first, crystal count always wins the tiebreak
+  // second, and level cost only decides what's left.
+  //
+  // A hard time/quality cap (`options.timeout` / `options.tolerance` below)
+  // is essential here, not just a nicety: this solver's branch-and-bound can
+  // blow up unpredictably on certain trait/food combinations (observed to
+  // hang outright on some Rental Skills during testing, unrelated to how the
+  // objective is weighted — it's a pre-existing sharp edge in the library,
+  // not something specific to crystal-minimization). Without a cap, that
+  // means an unresponsive page. With it, the solver always returns its best
+  // solution found within the time given — optimal in the vast majority of
+  // cases, and very close to it on the rare pathological ones — instead of
+  // hanging.
+  function solveCycle(remaining, budget, candidateFoods, fairyElement){
+    var traits = Object.keys(remaining);
+    if (budget <= 0 || traits.length === 0){
+      return { rows: [], gained: {}, levelsUsed: 0, crystalsUsed: 0 };
+    }
+
+    // Max possible level-cost score magnitude in one cycle is `budget` (the
+    // levelBudget constraint caps sum(qty*levelGain) at budget directly), so
+    // any weight for "fewer crystals" above that always wins the tiebreak.
+    // Max possible combined crystal+level magnitude is then bounded by
+    // budget/2 crystals (cheapest crystal costs 2 levels) times that weight,
+    // plus budget itself — so any coverage weight well above THAT always
+    // wins first. These constants keep a wide safety margin either way.
+    var W_CRYSTAL = 1000;
+    var W_COV = 1000000;
+
+    var model = {
+      optimize: "score", opType: "max", constraints: {}, variables: {}, ints: {},
+      options: { timeout: 500, tolerance: 0.01 }
+    };
+    model.constraints.levelBudget = { max: budget };
+    traits.forEach(function(t){
+      model.constraints["cap_" + t] = { max: remaining[t] };
+      model.constraints["link_" + t] = { max: 0 };
+    });
+
+    var varMeta = {};
+    candidateFoods.forEach(function(f){
+      var id = foodKey(f) + "|" + f.tier;
+      var isCrystal = f.type === "Crystal";
+      var vars = { levelBudget: f.levelGain, score: -f.levelGain - (isCrystal ? W_CRYSTAL : 0) };
+      var useful = false;
+      traits.forEach(function(t){
+        var raw = f.traits[t] || 0;
+        var eff = matchedDelta(raw, f.element, fairyElement);
+        if (eff !== 0){ vars["link_" + t] = -eff; useful = true; }
+      });
+      if (!useful) return;
+      model.variables[id] = vars;
+      model.ints[id] = 1;
+      varMeta[id] = f;
+    });
+
+    traits.forEach(function(t){
+      var yId = "y_" + t;
+      var v = {};
+      v["cap_" + t] = 1;
+      v["link_" + t] = 1;
+      v.score = W_COV;
+      model.variables[yId] = v;
+    });
+
+    if (Object.keys(varMeta).length === 0){
+      return { rows: [], gained: {}, levelsUsed: 0, crystalsUsed: 0, noFood: true };
+    }
+
+    var result = window.solver.Solve(model);
+    var rows = [];
+    var gained = {}; traits.forEach(function(t){ gained[t] = 0; });
+    var levelsUsed = 0;
+    var crystalsUsed = 0;
+
+    Object.keys(varMeta).forEach(function(id){
+      var qty = Math.round(result[id] || 0);
+      if (qty > 0){
+        var f = varMeta[id];
+        rows.push({ food: f, qty: qty });
+        levelsUsed += qty * f.levelGain;
+        if (f.type === "Crystal") crystalsUsed += qty;
+        traits.forEach(function(t){
+          var raw = f.traits[t] || 0;
+          var eff = matchedDelta(raw, f.element, fairyElement);
+          if (eff) gained[t] += eff * qty;
+        });
+      }
+    });
+    rows.sort(function(a,b){ return b.qty - a.qty; });
+    return { rows: rows, gained: gained, levelsUsed: levelsUsed, crystalsUsed: crystalsUsed };
+  }
+
+  function renderCycleTable(cycle, idx, targets){
+    var html = '<div class="cycle-block">';
+    html += '<div class="cycle-head"><h3>Cycle ' + (idx+1) + '</h3><span class="lv">' +
+      cycle.levelsUsed + ' / ' + cycle.budget + ' levels used</span></div>';
+    if (cycle.rows.length === 0){
+      html += '<p class="hint" style="margin:0;">No room to feed anything this cycle — refresh immediately.</p>';
+    } else {
+      html += '<div class="table-wrap"><table><thead><tr><th>Food</th><th>Tier</th><th class="num">Qty</th></tr></thead><tbody>';
+      cycle.rows.forEach(function(r){
+        html += '<tr><td>' + r.food.name + (r.food.element === state.element ? ' <span style="color:var(--accent-2); font-weight:600; font-size:.78em;">match</span>' : '') +
+          '</td><td><span class="tier-badge ' + r.food.tier + '">' + r.food.tier + '</span></td><td class="num">' + r.qty + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '<div class="chip-row" style="margin-top:10px;">';
+    Object.keys(targets).forEach(function(t){
+      html += '<span class="chip">' + t + ' <span class="n">' + cycle.haveAfter[t] + '</span> <span style="opacity:.6">/ ' + targets[t] + '</span></span>';
+    });
+    html += '</div></div>';
+    return html;
+  }
+
+  function calculate(){
+    var skill = SKILLS.find(function(s){ return s.name === state.skillName; });
+    var targets = {};
+    Object.keys(skill.req).forEach(function(trait){ targets[trait] = skill.req[trait]; });
+
+    var html = "";
+
+    // "Points left" is exactly what the game shows, so the fairy's current
+    // total is just the target minus that — no separate "current points"
+    // input needed anywhere.
+    var have = {};
+    Object.keys(targets).forEach(function(t){
+      var left = state.pointsLeft[t] !== undefined ? state.pointsLeft[t] : targets[t];
+      left = Math.max(0, Math.min(targets[t], left));
+      have[t] = targets[t] - left;
+    });
+
+    var anyRemaining = Object.keys(targets).some(function(t){ return targets[t] - have[t] > 0; });
+    if (!anyRemaining){
+      html += '<div class="banner good">Every trait needed for this skill is already at or above target — no food needed!</div>';
+      elResults.innerHTML = html;
+      return;
+    }
+
+    var allowedTiers = Object.keys(state.tiers).filter(function(t){ return state.tiers[t]; });
+    var candidateFoods = FOODS.filter(function(f){
+      return allowedTiers.indexOf(f.tier) !== -1 && !state.excludedFoods.has(foodKey(f));
+    });
+
+    // Bail out early if some needed trait has literally no positive-contributing food available.
+    var deadTraits = Object.keys(targets).filter(function(t){
+      if (targets[t] - have[t] <= 0) return false;
+      return !candidateFoods.some(function(f){
+        var raw = f.traits[t] || 0;
+        return matchedDelta(raw, f.element, state.element) > 0;
+      });
+    });
+    if (deadTraits.length){
+      html += '<div class="banner danger">No available food (given your tier/exclusion settings) can raise ' +
+        deadTraits.join(", ") + ' at all. Widen the available foods in Advanced options.</div>';
+      elResults.innerHTML = html;
+      return;
+    }
+
+    var cycles = [];
+    var budget = MAX_LEVEL - state.level;
+    var success = false;
+    var prevCycleAfter = null;
+
+    for (var i = 0; i < MAX_CYCLES; i++){
+      var remaining = {};
+      Object.keys(targets).forEach(function(t){
+        var r = targets[t] - have[t];
+        if (r > 0) remaining[t] = r;
+      });
+      if (Object.keys(remaining).length === 0){ success = true; break; }
+
+      var sol = solveCycle(remaining, budget, candidateFoods, state.element);
+      Object.keys(sol.gained).forEach(function(t){ have[t] += sol.gained[t]; });
+
+      var haveAfter = {};
+      Object.keys(targets).forEach(function(t){ haveAfter[t] = have[t]; });
+      var stillRemaining = Object.keys(targets).some(function(t){ return targets[t] - have[t] > 0; });
+
+      // Convergence check: compare this cycle's post-feed totals to the previous
+      // cycle's. If they've stopped moving and we still haven't hit target, further
+      // refreshes won't help either — stop without recording a duplicate cycle.
+      if (prevCycleAfter && stillRemaining){
+        var delta = 0;
+        Object.keys(targets).forEach(function(t){ delta += Math.abs(haveAfter[t] - prevCycleAfter[t]); });
+        if (delta < 1) break;
+      }
+
+      cycles.push({ budget: budget, rows: sol.rows, levelsUsed: sol.levelsUsed, crystalsUsed: sol.crystalsUsed, haveAfter: haveAfter });
+      if (!stillRemaining){ success = true; break; }
+
+      prevCycleAfter = haveAfter;
+      // Refresh: decay toward 10% retention, rounded down.
+      Object.keys(have).forEach(function(t){ have[t] = Math.floor(have[t] * RETAIN_FRACTION); });
+      budget = MAX_LEVEL - 1; // back to level 1 after refresh
+    }
+
+    if (cycles.length === 1){
+      html += '<div class="summary-stats">' +
+        '<div class="stat"><span class="v">' + cycles[0].levelsUsed + '</span><span class="l">Levels used</span></div>' +
+        '<div class="stat"><span class="v">' + cycles[0].rows.reduce(function(s,r){return s+r.qty;},0) + '</span><span class="l">Items fed</span></div>' +
+        '<div class="stat"><span class="v">' + cycles[0].crystalsUsed + '</span><span class="l">Gratitude Crystals used</span></div>' +
+        '<div class="stat"><span class="v">' + (state.level + cycles[0].levelsUsed) + '</span><span class="l">Ends at level</span></div>' +
+        '</div>';
+      html += renderCycleTable(cycles[0], 0, targets);
+    } else if (success) {
+      html += '<div class="banner warn"><strong>This needs ' + (cycles.length - 1) + ' refresh' + (cycles.length - 1 === 1 ? '' : 'es') +
+        '</strong> — she\'ll hit level 99, get revived (back to level 1, keeping 10% of her current totals), and continue feeding. Trait-swapping on refresh isn\'t modeled, so this assumes she keeps the same 5 traits throughout.</div>';
+      var totalItems = cycles.reduce(function(s,c){ return s + c.rows.reduce(function(s2,r){return s2+r.qty;},0); }, 0);
+      var totalCrystals = cycles.reduce(function(s,c){ return s + c.crystalsUsed; }, 0);
+      html += '<div class="summary-stats">' +
+        '<div class="stat"><span class="v">' + (cycles.length - 1) + '</span><span class="l">Refreshes needed</span></div>' +
+        '<div class="stat"><span class="v">' + totalItems + '</span><span class="l">Total items fed</span></div>' +
+        '<div class="stat"><span class="v">' + totalCrystals + '</span><span class="l">Gratitude Crystals used</span></div>' +
+        '</div>';
+      cycles.forEach(function(cycle, idx){
+        html += renderCycleTable(cycle, idx, targets);
+        if (idx < cycles.length - 1) html += '<div class="refresh-arrow">↓ refresh (revive to level 1, keep 10% of totals) ↓</div>';
+      });
+    } else {
+      var ceiling = cycles.length ? cycles[cycles.length - 1].haveAfter : have;
+      html += '<div class="banner danger"><strong>Not possible, even with unlimited refreshes.</strong> ' +
+        'Feeding plateaus below target because each refresh keeps only 10% of her totals, which caps out at a ceiling this skill\'s requirements exceed.</div>';
+      html += '<div class="table-wrap"><table><thead><tr><th>Trait</th><th class="num">Target</th><th class="num">Ceiling reached</th></tr></thead><tbody>';
+      Object.keys(targets).forEach(function(t){
+        var short = targets[t] - ceiling[t] > 0;
+        html += '<tr><td>' + t + '</td><td class="num">' + targets[t] + '</td><td class="num"' +
+          (short ? ' style="color:var(--danger); font-weight:600;"' : '') + '>' + ceiling[t] + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      html += '<p class="hint" style="margin-top:10px;">Feeding plan settled into a repeating ' + cycles.length + '-cycle steady state (shown above) without reaching target. This assumes the same 5 traits are kept every refresh — swapping a trait for a fresh one at some point could change the outcome.</p>';
+      cycles.forEach(function(cycle, idx){
+        html += renderCycleTable(cycle, idx, targets);
+        if (idx < cycles.length - 1) html += '<div class="refresh-arrow">↓ refresh (revive to level 1, keep 10% of totals) ↓</div>';
+      });
+    }
+
+    elResults.innerHTML = html;
+  }
+
+  calculate();
+})();
+</script>
