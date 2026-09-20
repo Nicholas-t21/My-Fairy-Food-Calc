@@ -131,6 +131,12 @@
   .refresh-arrow{ text-align:center; color:var(--accent); font-size:.8rem; font-weight:600; margin:6px 0 14px; }
 
   footer.note{ font-size:.78rem; color:var(--text-dim); text-align:center; max-width:70ch; margin-inline:auto; }
+
+  .contact-row{ display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:9px; font-size:.78rem; color:var(--text-dim); margin-top:2px; }
+  .icon-link{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:8px; background:var(--chip-bg); color:var(--accent-2); flex:none; transition:filter .15s ease, transform .15s ease; }
+  .icon-link:hover{ filter:brightness(1.12); transform:translateY(-1px); }
+  .icon-link svg{ width:16px; height:16px; }
+  :root:not([data-theme="light"]) .icon-link, :root[data-theme="dark"] .icon-link{ color:var(--accent-2); }
 </style>
 
 <main>
@@ -192,6 +198,16 @@
 
   <footer class="note">Data from the Zelda Wiki's My Fairy page. Assumes she keeps the same traits through every refresh, and only ever uses Gold Gratitude Crystals (never Silver, since each one costs a fairy release either way) priced at the 50 levels it costs to obtain one, using them only when that's cheaper than regular food.</footer>
   <footer class="note" style="margin-top:-8px;">By Nicpow</footer>
+
+  <div class="contact-row">
+    <span>Found a bug or have an idea? Contact me here:</span>
+    <a class="icon-link" href="https://discord.com/users/313056476245786624" target="_blank" rel="noopener noreferrer" aria-label="Discord">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.32 5.37a16.9 16.9 0 0 0-4.17-1.3.06.06 0 0 0-.07.03c-.18.32-.38.74-.52 1.07a15.6 15.6 0 0 0-4.72 0 10.4 10.4 0 0 0-.53-1.07.07.07 0 0 0-.07-.03c-1.46.25-2.86.69-4.17 1.3a.06.06 0 0 0-.03.02C3.4 8.6 2.78 11.75 3.08 14.85a.07.07 0 0 0 .03.05 17 17 0 0 0 5.09 2.58.07.07 0 0 0 .07-.02c.39-.54.74-1.11 1.04-1.71a.06.06 0 0 0-.04-.1 11.2 11.2 0 0 1-1.6-.76.07.07 0 0 1 0-.11c.1-.08.22-.16.32-.25a.06.06 0 0 1 .06 0c3.35 1.53 6.98 1.53 10.29 0a.06.06 0 0 1 .07 0c.1.08.21.17.32.25a.07.07 0 0 1 0 .11c-.51.3-1.04.56-1.6.76a.06.06 0 0 0-.03.1c.3.6.65 1.17 1.03 1.71a.06.06 0 0 0 .07.02 16.9 16.9 0 0 0 5.1-2.58.07.07 0 0 0 .03-.05c.36-3.58-.6-6.7-2.53-9.46a.05.05 0 0 0-.02-.02ZM9.68 13.4c-.84 0-1.53-.78-1.53-1.73s.68-1.73 1.53-1.73 1.54.78 1.53 1.73c0 .95-.68 1.73-1.53 1.73Zm4.66 0c-.84 0-1.53-.78-1.53-1.73s.68-1.73 1.53-1.73 1.54.78 1.53 1.73c0 .95-.68 1.73-1.53 1.73Z"/></svg>
+    </a>
+    <a class="icon-link" href="https://www.reddit.com/user/Nicpow21/" target="_blank" rel="noopener noreferrer" aria-label="Reddit">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm5.5 9.35a1.35 1.35 0 0 1 .53 2.6c.01.11.02.23.02.35 0 1.99-2.32 3.6-5.18 3.6s-5.18-1.61-5.18-3.6c0-.12 0-.24.02-.35a1.35 1.35 0 0 1 .55-2.58c.36 0 .69.13.94.35a6.3 6.3 0 0 1 2.7-.86l.62-2.65a.32.32 0 0 1 .38-.24l1.87.42a.9.9 0 1 1-.15.65l-1.53-.35-.5 2.15a6.3 6.3 0 0 1 2.65.87c.25-.24.6-.39.98-.39.03 0 .06 0 .09.01ZM9.62 13.1a.82.82 0 1 0 0 1.64.82.82 0 0 0 0-1.64Zm4.95 2.87a3.2 3.2 0 0 1-2.07.72 3.2 3.2 0 0 1-2.07-.72.27.27 0 0 1 .36-.4c.46.39 1.07.62 1.71.62.64 0 1.25-.23 1.71-.62a.27.27 0 0 1 .36.4Zm-.15-2.05a.82.82 0 1 1 0-1.64.82.82 0 0 1 0 1.64Z"/></svg>
+    </a>
+  </div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/javascript-lp-solver@0.4.24/prod/solver.js"></script>
