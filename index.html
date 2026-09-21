@@ -139,6 +139,34 @@
   .icon-link:hover{ filter:brightness(1.12); transform:translateY(-1px); }
   .icon-link svg{ width:16px; height:16px; }
   :root:not([data-theme="light"]) .icon-link, :root[data-theme="dark"] .icon-link{ color:var(--accent-2); }
+
+  .tabs{ display:flex; gap:8px; }
+  .tab-btn{
+    font-family:inherit; font-weight:600; font-size:.88rem; color:var(--text-dim);
+    background:var(--surface); border:1px solid var(--border); border-radius:999px;
+    padding:9px 18px; cursor:pointer; transition:background .15s ease, color .15s ease;
+  }
+  .tab-btn:hover{ background:var(--surface-2); }
+  .tab-btn.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .tab-panel{ display:none; flex-direction:column; gap:22px; }
+  .tab-panel.active{ display:flex; }
+
+  .rp-summary{ background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:16px; }
+  .rp-summary h3{ font-size:.95rem; margin-bottom:2px; }
+  .rp-warning{ background:var(--warn-bg); color:var(--warn); border-radius:10px; padding:12px 14px; font-size:.85rem; }
+  .rp-step{ display:flex; gap:12px; padding:12px 4px; border-bottom:1px solid var(--border); }
+  .rp-step:last-child{ border-bottom:none; }
+  .rp-body{ flex:1; display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .rp-actions{ display:flex; flex-direction:column; gap:6px; flex:none; align-self:center; }
+  .btn-sm{
+    font-family:inherit; font-weight:600; font-size:.76rem; color:var(--accent);
+    background:transparent; border:1px solid var(--accent); border-radius:8px;
+    padding:5px 11px; cursor:pointer; white-space:nowrap;
+  }
+  .btn-sm:hover{ background:var(--chip-bg); }
+  #rpActiveCount{ font-weight:400; color:var(--text-dim); }
+  .rp-swap{ font-size:.82rem; color:var(--text-dim); }
+  .rp-swap b{ color:var(--accent-2); }
 </style>
 
 <main>
@@ -147,6 +175,12 @@
     <p>Set your fairy's element and level, pick the Rental Skill you want, then enter how many points she still needs per trait - straight from her stats screen.</p>
   </header>
 
+  <nav class="tabs" role="tablist">
+    <button type="button" class="tab-btn active" data-tab="feeding" role="tab" aria-selected="true">Feeding Plan</button>
+    <button type="button" class="tab-btn" data-tab="refresh" role="tab" aria-selected="false">Refresh Path</button>
+  </nav>
+
+  <div id="tabPanel-feeding" class="tab-panel active">
   <section class="card">
     <h2>Your Fairy</h2>
     <p class="hint">Feeding also levels her up - she caps at level 99 without a refresh.</p>
@@ -197,6 +231,27 @@
     <h2>Feeding Plan</h2>
     <div id="results"></div>
   </section>
+  </div>
+
+  <div id="tabPanel-refresh" class="tab-panel">
+  <section class="card">
+    <h2>Refresh Path</h2>
+    <p class="hint">Tick the skills she's already learned and the 5 traits she has active right now, then calculate the order that reaches the rest in the fewest refreshes - each refresh swaps one active trait for another. This part doesn't touch food at all.</p>
+
+    <label class="field" style="margin-bottom:6px;">Already learned</label>
+    <div class="food-groups" id="rpLearnedGroup" style="margin-bottom:18px;"></div>
+
+    <label class="field" style="margin-bottom:6px;">Her 5 active traits right now <span id="rpActiveCount"></span></label>
+    <div class="food-groups" id="rpActiveGroup"></div>
+
+    <div class="actions" style="margin-top:18px;">
+      <button type="button" class="primary" id="rpCalcBtn" disabled>Calculate path</button>
+    </div>
+
+    <div id="refreshWarning" style="margin-top:14px;"></div>
+    <div id="refreshResults"></div>
+  </section>
+  </div>
 
   <footer class="note">Data from the Zelda Wiki's My Fairy page. Assumes she keeps the same traits through every refresh, and only ever uses Gold Gratitude Crystals (never Silver, since each one costs a fairy release either way) priced at the 50 levels it costs to obtain one, using them only when that's cheaper than regular food.</footer>
   <footer class="note" style="margin-top:-8px;">By Nicpow</footer>
@@ -245,6 +300,14 @@
   var MATCH_MAP = {};
   Object.keys(DATA.matchMap).forEach(function(k){ MATCH_MAP[k] = DATA.matchMap[k]; });
   var SKILLS = DATA.skills;
+
+  // The 10 skills the Refresh Path tab plans around - each needs 4 or 5
+  // traits active at once, and only one active trait can be swapped per
+  // refresh (at level 99), so getting from one skill's requirement set to
+  // another can take more than one refresh.
+  var REQUIRED_SKILLS = ["Extreme Crush+","Glass Cannon","XP Master+","Total Focus","Weapon Master+","Magic Fountain+","Food Master+","Special Fountain+","Wall of Water+","Material Master+"];
+  var rpLearned = new Set();
+  var rpActive = new Set();
   // Gratitude Crystals ship in all five elements, but which one you get is
   // random and never gets a match bonus (see matchedDelta) - so with the
   // element stripped of any effect, every elemental copy of a given tier is
@@ -298,6 +361,14 @@
   var elFoodGroups = document.getElementById("foodGroups");
   var elResults = document.getElementById("results");
   var elCalcBtn = document.getElementById("calcBtn");
+  var elTabBtns = document.querySelectorAll(".tab-btn");
+  var elTabPanels = document.querySelectorAll(".tab-panel");
+  var elRpLearnedGroup = document.getElementById("rpLearnedGroup");
+  var elRpActiveGroup = document.getElementById("rpActiveGroup");
+  var elRpActiveCount = document.getElementById("rpActiveCount");
+  var elRpCalcBtn = document.getElementById("rpCalcBtn");
+  var elRefreshWarning = document.getElementById("refreshWarning");
+  var elRefreshResults = document.getElementById("refreshResults");
 
   elFairyElement.value = state.element;
   elFairyLevel.value = state.level;
@@ -381,21 +452,254 @@
     });
   }
 
+  // Selects a skill in the Feeding Plan tab and resets her "points left"
+  // entries for it - shared by the skill dropdown and the Refresh Path tab's
+  // "Plan feeding for X" shortcut so both go through the same reset logic.
+  function selectSkill(name){
+    state.skillName = name;
+    state.pointsLeft = {};
+    elSkillSelect.value = name;
+    renderSkillTarget();
+  }
+
+  function switchTab(name){
+    elTabBtns.forEach(function(btn){
+      var active = btn.getAttribute("data-tab") === name;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    elTabPanels.forEach(function(panel){
+      panel.classList.toggle("active", panel.id === "tabPanel-" + name);
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function chipsFor(traits, reqMap){
+    return traits.map(function(t){
+      return '<span class="chip">' + t + (reqMap ? ' <span class="n">' + reqMap[t] + '</span>' : '') + '</span>';
+    }).join("");
+  }
+
+  function renderRpLearnedGroup(){
+    var html = '<div class="food-group">';
+    REQUIRED_SKILLS.forEach(function(name){
+      html += '<label><input type="checkbox" data-learned="' + name + '"' + (rpLearned.has(name) ? " checked" : "") + '> ' + name + '</label>';
+    });
+    html += '</div>';
+    elRpLearnedGroup.innerHTML = html;
+    elRpLearnedGroup.querySelectorAll("input[type=checkbox]").forEach(function(cb){
+      cb.addEventListener("change", function(){
+        var name = cb.getAttribute("data-learned");
+        if (cb.checked) rpLearned.add(name); else rpLearned.delete(name);
+        elRefreshWarning.innerHTML = "";
+        elRefreshResults.innerHTML = "";
+      });
+    });
+  }
+
+  function updateRpActiveCount(){
+    elRpActiveCount.textContent = "(" + rpActive.size + " of 5 selected)";
+    elRpCalcBtn.disabled = rpActive.size !== 5;
+  }
+
+  function renderRpActiveGroup(){
+    var html = '<div class="food-group">';
+    DATA.traits.forEach(function(t){
+      html += '<label><input type="checkbox" data-active="' + t + '"' + (rpActive.has(t) ? " checked" : "") + '> ' + t + '</label>';
+    });
+    html += '</div>';
+    elRpActiveGroup.innerHTML = html;
+    elRpActiveGroup.querySelectorAll("input[type=checkbox]").forEach(function(cb){
+      cb.addEventListener("change", function(){
+        var t = cb.getAttribute("data-active");
+        // A fairy always has exactly 5 active traits - block a 6th tick
+        // rather than letting the set grow past what's actually possible.
+        if (cb.checked && rpActive.size >= 5){
+          cb.checked = false;
+          return;
+        }
+        if (cb.checked) rpActive.add(t); else rpActive.delete(t);
+        updateRpActiveCount();
+        elRefreshWarning.innerHTML = "";
+        elRefreshResults.innerHTML = "";
+      });
+    });
+    updateRpActiveCount();
+  }
+
+  // Exact shortest-path solve: a node is (which of the 10 target skills are
+  // still unlearned, which 5 traits are active); an edge is one refresh (one
+  // trait swapped for another, cost 1). Whenever a swap makes the active set
+  // a superset of some still-unlearned skill's requirement, that skill is
+  // picked up immediately at no extra cost - even if it isn't the one being
+  // aimed for. A breadth-first search over this graph (all edges cost 1, so
+  // BFS gives the shortest path directly) finds the true minimum number of
+  // refreshes to learn everything: every order and every choice of which
+  // traits to keep as "filler" gets explored, not just the locally-cheapest
+  // next skill.
+  var TRAIT_BIT = {};
+  DATA.traits.forEach(function(t, i){ TRAIT_BIT[t] = 1 << i; });
+  var FULL_TRAIT_MASK = (1 << DATA.traits.length) - 1;
+  var REQUIRED_SKILL_MASKS = REQUIRED_SKILLS.map(function(name){
+    var skill = SKILLS.find(function(s){ return s.name === name; });
+    var mask = 0;
+    Object.keys(skill.req).forEach(function(t){ mask |= TRAIT_BIT[t]; });
+    return mask;
+  });
+
+  function maskToTraits(mask){
+    return DATA.traits.filter(function(t){ return (mask & TRAIT_BIT[t]) !== 0; });
+  }
+
+  // Clears any still-unlearned skill bit whose requirement is fully covered
+  // by `activeMask` - picked up for free, no refresh spent.
+  function resolveFree(remainingBits, activeMask){
+    for (var i = 0; i < REQUIRED_SKILLS.length; i++){
+      if ((remainingBits & (1 << i)) && (REQUIRED_SKILL_MASKS[i] & ~activeMask) === 0){
+        remainingBits &= ~(1 << i);
+      }
+    }
+    return remainingBits;
+  }
+
+  function solveRefreshPath(learnedSet, activeStart){
+    var learnedBits = 0;
+    REQUIRED_SKILLS.forEach(function(name, i){ if (learnedSet.has(name)) learnedBits |= (1 << i); });
+    var allBits = (1 << REQUIRED_SKILLS.length) - 1;
+    var startActive = 0;
+    activeStart.forEach(function(t){ startActive |= TRAIT_BIT[t]; });
+    var startRemaining = resolveFree(allBits & ~learnedBits, startActive);
+
+    var freeAtStart = [];
+    REQUIRED_SKILLS.forEach(function(name, i){
+      if (!(learnedBits & (1 << i)) && !(startRemaining & (1 << i))) freeAtStart.push(name);
+    });
+    if (startRemaining === 0) return { freeAtStart: freeAtStart, swaps: [] };
+
+    function key(remaining, active){ return remaining * 1024 + active; }
+
+    var startKey = key(startRemaining, startActive);
+    var visited = {};
+    visited[startKey] = { remaining: startRemaining, active: startActive, prevKey: null, swapOut: null, swapIn: null, unlocked: [] };
+    var queue = [startKey];
+    var goalKey = null;
+
+    while (queue.length){
+      var curKey = queue.shift();
+      var cur = visited[curKey];
+      if (cur.remaining === 0){ goalKey = curKey; break; }
+
+      var activeTraits = maskToTraits(cur.active);
+      var inactiveTraits = maskToTraits(FULL_TRAIT_MASK & ~cur.active);
+      for (var oi = 0; oi < activeTraits.length; oi++){
+        for (var ii = 0; ii < inactiveTraits.length; ii++){
+          var outT = activeTraits[oi], inT = inactiveTraits[ii];
+          var newActive = (cur.active & ~TRAIT_BIT[outT]) | TRAIT_BIT[inT];
+          var newRemaining = resolveFree(cur.remaining, newActive);
+          var newKey = key(newRemaining, newActive);
+          if (!visited[newKey]){
+            var unlocked = [];
+            REQUIRED_SKILLS.forEach(function(name, i){
+              if ((cur.remaining & (1 << i)) && !(newRemaining & (1 << i))) unlocked.push(name);
+            });
+            visited[newKey] = { remaining: newRemaining, active: newActive, prevKey: curKey, swapOut: outT, swapIn: inT, unlocked: unlocked };
+            queue.push(newKey);
+          }
+        }
+      }
+    }
+
+    var chain = [];
+    var k = goalKey;
+    while (visited[k].prevKey !== null){
+      var node = visited[k];
+      chain.push({ swapOut: node.swapOut, swapIn: node.swapIn, unlocked: node.unlocked });
+      k = node.prevKey;
+    }
+    chain.reverse();
+    return { freeAtStart: freeAtStart, swaps: chain };
+  }
+
+  async function renderRefreshResults(){
+    elRefreshWarning.innerHTML = "";
+    elRefreshResults.innerHTML = "";
+    if (rpActive.size !== 5){
+      elRefreshWarning.innerHTML = '<div class="rp-warning">Pick exactly 5 active traits before calculating.</div>';
+      return;
+    }
+    var remainingNames = REQUIRED_SKILLS.filter(function(n){ return !rpLearned.has(n); });
+    if (remainingNames.length === 0){
+      elRefreshResults.innerHTML = '<div class="rp-summary"><h3>All 10 learned!</h3><p class="hint" style="margin:8px 0 0;">Nothing left to plan.</p></div>';
+      return;
+    }
+
+    // The search over every order and filler choice can take a second or two,
+    // so show a spinner and yield once before the (blocking) solve runs, the
+    // same pattern the Feeding Plan tab uses for its own solver.
+    elRpCalcBtn.disabled = true;
+    elRefreshResults.innerHTML = '<div class="spinner-wrap"><span class="spinner" aria-hidden="true"></span>Searching for the shortest path…</div>';
+    await yieldToUI();
+
+    var solved;
+    try {
+      solved = solveRefreshPath(rpLearned, rpActive);
+    } finally {
+      elRpCalcBtn.disabled = false;
+    }
+    var refreshCount = solved.swaps.length;
+
+    var html = '<div class="rp-summary"><h3>Starting active traits</h3><div class="chip-row">' + chipsFor(Array.from(rpActive)) + '</div>' +
+      '<p class="hint" style="margin:10px 0 0;">' + refreshCount + ' refresh' + (refreshCount === 1 ? "" : "es") + ' to learn the remaining ' + remainingNames.length + ' skill' + (remainingNames.length === 1 ? "" : "s") + '.</p></div>';
+
+    solved.freeAtStart.forEach(function(name){
+      html += '<div class="rp-step">' +
+        '<div class="rp-body"><strong>Already reachable: ' + name + '</strong></div>' +
+        '<div class="rp-actions"><button type="button" class="btn-sm" data-jump-skill="' + name + '">Plan feeding for ' + name + '</button></div>' +
+        '</div>';
+    });
+
+    solved.swaps.forEach(function(step, i){
+      html += '<div class="rp-step"><div class="rp-body">' +
+        '<strong>Refresh ' + (i + 1) + '</strong>' +
+        '<div class="rp-swap">Swap <b>' + step.swapOut + '</b> &rarr; <b>' + step.swapIn + '</b></div>';
+      html += step.unlocked.length ?
+        '<p class="hint" style="margin:2px 0 0;">Unlocks ' + formatDropList(step.unlocked.map(function(n){ return "<b>" + n + "</b>"; })) + '.</p>' :
+        '<p class="hint" style="margin:2px 0 0;">No skill yet.</p>';
+      html += '</div>';
+      if (step.unlocked.length){
+        html += '<div class="rp-actions">' +
+          step.unlocked.map(function(n){ return '<button type="button" class="btn-sm" data-jump-skill="' + n + '">Plan feeding for ' + n + '</button>'; }).join("") +
+          '</div>';
+      }
+      html += '</div>';
+    });
+
+    elRefreshResults.innerHTML = html;
+    elRefreshResults.querySelectorAll("[data-jump-skill]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        selectSkill(btn.getAttribute("data-jump-skill"));
+        switchTab("feeding");
+      });
+    });
+  }
+
   renderFoodGroups();
   renderSkillTarget();
+  renderRpLearnedGroup();
+  renderRpActiveGroup();
 
   // ---------- events ----------
+  elTabBtns.forEach(function(btn){
+    btn.addEventListener("click", function(){ switchTab(btn.getAttribute("data-tab")); });
+  });
   elFairyElement.addEventListener("change", function(){ state.element = elFairyElement.value; });
   elFairyLevel.addEventListener("input", function(){
     var v = parseInt(elFairyLevel.value, 10);
     if (isNaN(v)) v = 1;
     state.level = Math.max(1, Math.min(99, v));
   });
-  elSkillSelect.addEventListener("change", function(){
-    state.skillName = elSkillSelect.value;
-    state.pointsLeft = {}; // fresh skill, fresh "points left" entries
-    renderSkillTarget();
-  });
+  elSkillSelect.addEventListener("change", function(){ selectSkill(elSkillSelect.value); });
+  elRpCalcBtn.addEventListener("click", renderRefreshResults);
 
   document.getElementById("tierBronze").addEventListener("change", function(e){ state.tiers.bronze = e.target.checked; });
   document.getElementById("tierSilver").addEventListener("change", function(e){ state.tiers.silver = e.target.checked; });
